@@ -1,0 +1,39 @@
+{
+  "name": "apto",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "test": "ts-node --project tsconfig.test.json tests/run.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint",
+    "db:push": "prisma db push",
+    "db:seed": "ts-node --project tsconfig.seed.json prisma/seed.ts",
+    "db:reset": "prisma db push --force-reset && npm run db:seed",
+    "db:studio": "prisma studio",
+    "db:generate": "prisma generate",
+    "postinstall": "prisma generate"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.37.0",
+    "@prisma/client": "^6.19.3",
+    "lucide-react": "^0.511.0",
+    "next": "16.2.9",
+    "react": "19.2.4",
+    "react-dom": "19.2.4"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.9",
+    "prisma": "^6.19.3",
+    "tailwindcss": "^4",
+    "ts-node": "^10.9.2",
+    "typescript": "^5"
+  }
+}

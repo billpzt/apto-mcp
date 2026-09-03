@@ -1,0 +1,58 @@
+# dependencies
+node_modules/
+.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files. The example is the one exception and MUST stay committed.
+.env
+.env.*
+!.env.example
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# SQLite database, local only. Never commit: it holds the real pipeline.
+*.db
+*.db-journal
+prisma/*.db
+
+# Local artifacts that must never reach a public repo.
+# repomix flattens the entire repo into one file, secrets and all.
+repomix-output.xml
+# Hosting log exports carry project ids, deployment ids and internal hostnames.
+apto-log-export-*.json
+*.log
+
+# Local tool caches and per-machine settings.
+.serena/
+.claude/settings.local.json
+.foreman/

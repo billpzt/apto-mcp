@@ -1,0 +1,179 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Job {
+  id              String      @id @default(cuid())
+  title           String
+  company         String
+  url             String?
+  canonicalUrl        String?
+  titleFamily         String?
+  remoteScope         String?
+  eligibleFromBrazil  String?
+  eligibilityEvidence String?
+  postedAt            DateTime?
+  lastVerifiedAt      DateTime?
+  status          String      @default("BACKLOG")
+  location        String?
+  salary          String?
+  jobType         String?
+  notes           String?
+  resumeSent      String?
+  jdText          String?
+  score           String?
+  jdAnalysis      String?
+  followUpDate    DateTime?
+  lastContactDate DateTime?
+  appliedAt       DateTime?
+  nextAction      String?
+  priority        String?
+  sourceType      String?
+  sourceContactId String?
+  sourceNotes     String?
+  closedReason    String?
+  adzunaId        String?     @unique  // Adzuna job ID, for dedup on sync
+  sourceContact   Contact?    @relation("JobSourceContact", fields: [sourceContactId], references: [id], onDelete: SetNull)
+  contacts        Contact[]
+  jobContacts     JobContact[]
+  actionItems     ActionItem[]
+  updates         JobUpdate[]
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@index([canonicalUrl])
+  @@index([eligibleFromBrazil, status])
+  @@index([appliedAt])
+}
+
+model Contact {
+  id          String       @id @default(cuid())
+  name        String
+  title       String?
+  company     String?
+  email       String?
+  linkedin    String?
+  notes       String?
+  jobId       String?
+  job         Job?         @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  sourceJobs  Job[]        @relation("JobSourceContact")
+  jobContacts JobContact[]
+  actionItems ActionItem[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model JobContact {
+  id        String   @id @default(cuid())
+  jobId     String
+  contactId String
+  role      String
+  notes     String?
+  job       Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  contact   Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([jobId, contactId, role])
+}
+
+model ActionItem {
+  id          String    @id @default(cuid())
+  title       String
+  kind        String
+  status      String    @default("open")
+  dueDate     DateTime?
+  completedAt DateTime?
+  jobId       String?
+  contactId   String?
+  notes       String?
+  job         Job?      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  contact     Contact?  @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model JobUpdate {
+  id         String   @id @default(cuid())
+  jobId       String
+  occurredAt DateTime
+  kind       String   @default("note")
+  summary    String
+  details    String?
+  job        Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model DirectoryItem {
+  id                 String    @id @default(cuid())
+  name               String
+  url                String?
+  category           String
+  status             String    @default("active")
+  checkFrequencyDays Int?
+  lastCheckedAt      DateTime?
+  nextAction         String?
+  notes              String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+}
+
+model AiProviderConfig {
+  id         String   @id @default(cuid())
+  provider   String
+  model      String?
+  apiKeyName String?
+  isDefault  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model Skill {
+  id               String            @id @default(cuid())
+  name             String
+  category         String?
+  level            Int               @default(3)
+  yearsExp         Float?
+  notes            String?
+  featured         Boolean           @default(false)
+  atomlearnTopic   String?
+  practiceSessions PracticeSession[]
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+}
+
+model PracticeSession {
+  id         String   @id @default(cuid())
+  date       DateTime @default(now())
+  platform   String
+  topic      String
+  problems   Int?
+  duration   Int?
+  difficulty String?
+  notes      String?
+  skillId    String?
+  skill      Skill?   @relation(fields: [skillId], references: [id], onDelete: SetNull)
+  createdAt  DateTime @default(now())
+}
+
+model ResumeVersion {
+  id        String   @id @default(cuid())
+  name      String
+  content   String?
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model AppConfig {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
