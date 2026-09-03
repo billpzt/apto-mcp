@@ -39,7 +39,7 @@ So the primary interface is a set of typed tools. A Claude session can open a ro
 
 ## Quick start
 
-**Requirements:** Node 20+, npm, and a PostgreSQL database. A free Neon database works.
+**Requirements:** Node 20+ and npm. You do not need to install PostgreSQL, and you do not need Docker.
 
 ```bash
 git clone https://github.com/billpzt/apto-mcp.git
@@ -48,24 +48,37 @@ npm install
 cp .env.example .env
 ```
 
-Open `.env` and set:
-- `DATABASE_URL` to your PostgreSQL pooled connection string (with `connect_timeout=15`)
-- `DIRECT_URL` to the unpooled endpoint (used for migrations only)
-- At least one AI provider key (e.g. `ANTHROPIC_API_KEY`)
-
-Then:
+Now start a local database. `prisma dev` ships inside the Prisma CLI you just installed and runs a real PostgreSQL server on a random free port:
 
 ```bash
-npm run db:push               # applies schema to your PostgreSQL database
+npx prisma dev -n apto -d     # -d runs it in the background
+```
+
+It prints a connection string like `postgres://postgres:postgres@localhost:51214/template1?sslmode=disable`. Open `.env` and paste that same string into **both** `DATABASE_URL` and `DIRECT_URL`. Then:
+
+```bash
+npm run db:push               # creates the tables
 npm run db:seed               # loads the fictional demo pipeline
 npm run dev                   # http://localhost:3000
 ```
 
 You should land on a Kanban board with a demo pipeline in it. The seed data is invented. Delete it whenever you want with `npm run db:reset`.
 
+The local server keeps running between sessions. Manage it with `npx prisma dev ls`, `stop`, `start` and `rm`.
+
+An AI provider key (`ANTHROPIC_API_KEY`, `DEEPSEEK_API_KEY` or `OPENROUTER_API_KEY`) is optional for local use. The app runs without one; only the job-description analyzer needs it.
+
+### Deploying
+
+For a deployed instance, use a hosted PostgreSQL such as Neon and set:
+- `DATABASE_URL` to the **pooled** connection string, with `connect_timeout=15`
+- `DIRECT_URL` to the **unpooled** endpoint, used for migrations only
+
+Serverless Postgres often idles its compute to zero, and the first query after that has to wake it. Prisma's default 5 second connect timeout can lose that race and report an unreachable database when the real problem is a cold start, which is why `connect_timeout=15` is worth setting.
+
 > **Note on Prisma.** Keep the CLI pinned to `prisma@^6`. Version 7 removes the `url =` syntax this schema uses and will fail to generate.
 >
-> **Env files.** Prisma CLI reads `.env`, not `.env.local`. Make sure both `DATABASE_URL` and `DIRECT_URL` are set there before running `npm run db:push`.
+> **Env files.** The Prisma CLI reads `.env`, not `.env.local`. Make sure both `DATABASE_URL` and `DIRECT_URL` are set there before running `npm run db:push`.
 > `.env` also takes precedence over shell variables, so prefixing a command with `DATABASE_URL=...` does not override it. Edit `.env` itself, or you may run a migration against the wrong database.
 
 ## The agent layer
