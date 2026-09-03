@@ -127,8 +127,7 @@ apto/
 │   ├── platforms/       Directory of passive profiles
 │   └── api/
 │       ├── mcp/         MCP transport over HTTP
-│       ├── jobs/        REST, accepts x-api-key or session cookie
-│       └── chat/        Multi-provider LLM proxy with pipeline context
+│       └── jobs/        REST, accepts x-api-key or session cookie
 ├── lib/
 │   ├── assistant-tools.ts     Tool schemas, single source of truth
 │   ├── assistant-service.ts   The functions those tools call

@@ -13,7 +13,6 @@ import {
   PenSquare,
   Settings,
   Zap,
-  MessageSquare,
   LogOut,
   HelpCircle,
 } from "lucide-react";
@@ -30,13 +29,7 @@ const nav = [
   { href: "/help", icon: HelpCircle, label: "Help" },
 ];
 
-export function Sidebar({
-  chatOpen,
-  onChatToggle,
-}: {
-  chatOpen?: boolean;
-  onChatToggle?: () => void;
-}) {
+export function Sidebar() {
   const pathname = usePathname();
 
   return (
@@ -78,23 +71,6 @@ export function Sidebar({
           );
         })}
       </nav>
-
-      {/* AI Chat toggle */}
-      {onChatToggle && (
-        <div className="px-2 pb-1">
-          <button
-            onClick={onChatToggle}
-            className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors w-full ${
-              chatOpen
-                ? "bg-white/10 text-[var(--sidebar-fg)] font-medium"
-                : "text-[var(--sidebar-muted)] hover:bg-white/5 hover:text-[var(--sidebar-fg)]"
-            }`}
-          >
-            <MessageSquare size={15} />
-            AI Assistant
-          </button>
-        </div>
-      )}
 
       {/* Settings + Logout */}
       <div className="p-2 border-t border-[#21262d]">

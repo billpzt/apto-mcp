@@ -30,8 +30,7 @@ apto/
 │       ├── jobs/[id]/route.ts    # GET/PATCH/DELETE single job
 │       ├── skills/route.ts       # GET/POST skill operations
 │       ├── skills/[id]/route.ts  # PATCH/DELETE single skill
-│       ├── mcp/route.ts          # MCP server endpoint
-│       └── chat/route.ts         # Claude API proxy
+│       └── mcp/route.ts          # MCP server endpoint
 ├── components/
 │   ├── Sidebar.tsx               # Navigation
 │   ├── KanbanBoard.tsx           # Main board UI

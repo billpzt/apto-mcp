@@ -35,11 +35,11 @@ export async function POST(req: Request) {
         switch (payload.action) {
           // Legacy embedded-chat compatibility dispatch. These six handlers
           // preserve the original /api/assistant/actions behavior (direct
-          // db.* calls and the {action, success, message} response shape) so
-          // the live ChatPanel keeps working. They must remain until a
-          // separately planned migration provides full capability parity with
-          // the shared assistant service. Do not remap them to shared-service
-          // calls: their payloads, defaults, and response shapes differ.
+          // db.* calls and the {action, success, message} response shape).
+          // The in-app chat panel that called them has been removed, but the
+          // endpoint stays as a typed action API. Do not remap them to
+          // shared-service calls: their payloads, defaults, and response
+          // shapes differ.
           case "update_job": {
             const id = String(payload.id ?? "");
             if (!id) throw new Error("Missing job id");

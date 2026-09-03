@@ -4,7 +4,6 @@ import {
   Globe,
   Users,
   FileText,
-  MessageSquare,
   RefreshCw,
   Zap,
   BookOpen,
@@ -116,7 +115,7 @@ export default function HelpPage() {
               <BookOpen size={13} className="text-indigo-500" />
               <span className="font-medium text-gray-900">Practice Log</span>
             </div>
-            Log study sessions manually or via the AI chat. Track platform, topic, number of problems, duration, and difficulty. Linked to skills so progress shows up in gap analysis.
+            Log study sessions manually. Track platform, topic, number of problems, duration, and difficulty. Linked to skills so progress shows up in gap analysis.
           </Card>
           <Card>
             <div className="flex items-center gap-2 mb-1">
@@ -126,13 +125,6 @@ export default function HelpPage() {
             Automatically splits your skills into strengths (level 4+) and gaps (level 1–2), with practice recommendations for each gap area.
           </Card>
         </div>
-      </Section>
-
-      {/* AI Assistant */}
-      <Section icon={MessageSquare} title="AI Assistant">
-        <Card>
-          The chat panel (toggle from the sidebar) has full context on your jobs and skills. Use it to draft outreach emails, analyze a job description, log a practice session, or ask career strategy questions. The active AI provider is shown in Settings — defaults to DeepSeek for cost efficiency.
-        </Card>
       </Section>
 
       {/* Contacts */}
@@ -145,7 +137,7 @@ export default function HelpPage() {
       {/* Resume */}
       <Section icon={FileText} title="Resume">
         <Card>
-          Stores your resume versions. The default resume (seeded from <code className="text-xs bg-gray-100 px-1 py-0.5 rounded">cv.md</code>) is used by the AI assistant for context and by the <em>Sync from Resume</em> feature to extract skills automatically.
+          Stores your resume versions. The default resume (seeded from <code className="text-xs bg-gray-100 px-1 py-0.5 rounded">cv.md</code>) is used by the <em>Sync from Resume</em> feature to extract skills automatically.
         </Card>
       </Section>
 
@@ -166,7 +158,7 @@ export default function HelpPage() {
           </Card>
           <Card>
             <div className="font-medium text-gray-900 mb-1">AI Providers</div>
-            Apto supports multiple AI backends for the chat assistant. Configure in Settings under <em>AI Providers</em>. Supported providers: DeepSeek (default, cost-efficient), OpenRouter (access to many models), Anthropic Claude (requires separate API billing). Only one provider is active at a time.
+            Apto supports multiple AI backends for job analysis, cover letter drafting and resume parsing. Configure in Settings under <em>AI Providers</em>. Supported providers: DeepSeek (default, cost-efficient), OpenRouter (access to many models), Anthropic Claude (requires separate API billing). Only one provider is active at a time.
           </Card>
         </div>
       </Section>
@@ -175,7 +167,7 @@ export default function HelpPage() {
       <Section icon={Settings} title="Settings">
         <div className="flex flex-col gap-2 text-sm text-gray-600">
           {[
-            ["AI Providers", "Add API keys and set the active AI backend for the chat assistant."],
+            ["AI Providers", "Add API keys and set the active AI backend."],
             ["AtomLearn Integration", "Generate sync key, enter your AtomLearn API URL and Supabase user ID."],
             ["Workspace Sync", "Generate a sync key to authorize Claude to push workspace data into Apto."],
             ["Change Password", "Update your Apto login password."],
