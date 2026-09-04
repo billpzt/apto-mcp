@@ -95,7 +95,7 @@ export function Sidebar() {
           <button
             onClick={async () => {
               await fetch("/api/auth/logout", { method: "POST" });
-              window.location.href = "/login";
+              window.location.href = new URL("/login", window.location.origin).toString();
             }}
             className="mt-2 flex items-center gap-1.5 text-[var(--sidebar-muted)] hover:text-red-400 transition-colors"
           >
