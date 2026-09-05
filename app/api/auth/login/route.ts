@@ -26,7 +26,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Wrong password" }, { status: 401 });
   }
 
-  // Cookie stores the env var so Edge middleware (which can't hit DB) can validate sessions
+  // Cookie stores the env var so Edge proxy (which can't hit DB) can validate sessions
   const sessionValue = ENV_PASSWORD ?? activePassword;
   const res = NextResponse.json({ ok: true });
   res.cookies.set(COOKIE, sessionValue, {

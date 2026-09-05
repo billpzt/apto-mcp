@@ -5,7 +5,7 @@ const PASSWORD = process.env.APP_PASSWORD;
 const API_KEY = process.env.APTO_API_KEY;
 const COOKIE = "apto_session";
 
-export function middleware(req: NextRequest) {
+export function proxy(req: NextRequest) {
   // Skip auth if no password is set (local dev without APP_PASSWORD)
   if (!PASSWORD) return NextResponse.next();
 
