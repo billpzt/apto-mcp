@@ -14,7 +14,7 @@
     "db:reset": "prisma db push --force-reset && npm run db:seed",
     "db:studio": "prisma studio",
     "db:generate": "prisma generate",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate && npm --prefix apto-mcp ci --no-audit --no-fund"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.37.0",

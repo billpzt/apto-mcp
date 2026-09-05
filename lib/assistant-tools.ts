@@ -94,7 +94,10 @@ export const ASSISTANT_TOOLS = [
   },
   {
     name: "apto_record_application",
-    description: "Record an application only after the human submitted it.",
+    description:
+      "Record an application only after the human submitted it. Calling this on a job that is " +
+      "already recorded as applied does nothing, and calling it on a closed or rejected job is " +
+      "refused, so it is safe to call when unsure whether an earlier attempt landed.",
     inputSchema: {
       type: "object",
       required: ["jobId", "submittedAt"],
@@ -104,6 +107,13 @@ export const ASSISTANT_TOOLS = [
         followUpDate: { type: "string" },
         resumeSent: { type: "string" },
         notes: { type: "string" },
+        correction: {
+          type: "boolean",
+          description:
+            "Overwrite an already-recorded application date, or reopen a closed job. Only set " +
+            "this when the human has said the stored record is wrong. It is not the way to log " +
+            "a second application: create a separate job for a different posting.",
+        },
       },
     },
   },

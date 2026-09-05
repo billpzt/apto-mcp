@@ -62,7 +62,7 @@ export default function SkillsPage() {
   const [skills, setSkills] = useState<Skill[]>([]);
   const [sessions, setSessions] = useState<PracticeSession[]>([]);
   const [loading, setLoading] = useState(true);
-  const [sessionsLoading, setSessionsLoading] = useState(false);
+  const [sessionsLoading, setSessionsLoading] = useState(true);
 
   // Skill form
   const [showForm, setShowForm] = useState(false);
@@ -130,7 +130,6 @@ export default function SkillsPage() {
 
   useEffect(() => {
     if (tab === "practice" && sessions.length === 0) {
-      setSessionsLoading(true);
       fetch("/api/practice")
         .then((r) => r.json())
         .then((data) => { setSessions(data); setSessionsLoading(false); });

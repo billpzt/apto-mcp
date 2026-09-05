@@ -90,6 +90,7 @@ export type RecordApplicationInput = {
   followUpDate?: unknown;
   resumeSent?: unknown;
   notes?: unknown;
+  correction?: unknown;
 };
 
 export type NormalizedRecordApplicationInput = {
@@ -98,6 +99,10 @@ export type NormalizedRecordApplicationInput = {
   followUpDate: Date | null;
   resumeSent: string | null;
   notes: string | null;
+  // Set only when the operator means to overwrite a date that is already
+  // recorded, or to reopen a job that was closed out. Everything else treats
+  // an already-applied job as done rather than applying to it a second time.
+  correction: boolean;
 };
 
 export function normalizeRecordApplication(
@@ -118,5 +123,6 @@ export function normalizeRecordApplication(
     followUpDate,
     resumeSent: optionalString(input.resumeSent),
     notes: optionalString(input.notes),
+    correction: input.correction === true,
   };
 }

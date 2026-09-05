@@ -37,9 +37,9 @@ So the primary interface is a set of typed tools. A Claude session can open a ro
 **What that buys you**
 
 - **Continuity.** Session two knows what session one did, because it went into Postgres and not into a context window.
-- **Constraints that hold.** Importing is not applying. Only an explicit `apto_record_application` sets `appliedAt`, so an agent cannot inflate your numbers by being enthusiastic.
-- **Deduplication at the boundary.** Candidates merge on title and company, so re-running a source rotation does not produce three copies of the same posting.
-- **An audit trail.** Every status change and note is a row with a timestamp, not a paragraph in a chat log.
+- **Constraints that hold.** Importing is not applying. Moving a job to `APPLIED` is the job of one tool, `apto_record_application`, and calling it twice will not overwrite the date you already have or quietly reopen a rejection.
+- **Deduplication at the boundary.** Candidates merge on URL where there is one, and fall back to title and company only for jobs you have not applied to yet, so re-running a source rotation does not produce three copies of a posting or bulldoze a live application.
+- **An audit trail.** Applications, notes, closures and import merges each write a timestamped row rather than a paragraph in a chat log. Edits made through the REST API and the dashboard do not, so the trail is complete for agent activity and partial for your own clicking.
 
 ## Quick start
 
@@ -73,13 +73,13 @@ npm run db:seed               # loads the fictional demo pipeline
 npm run dev                   # http://localhost:3000
 ```
 
-You should land on a Kanban board with a demo pipeline in it. The seed data is invented. Delete it whenever you want with `npm run db:reset`.
+You should land on a Kanban board with a demo pipeline in it. The seed data is invented. `npm run db:reset` wipes the database and seeds the same demo pipeline again, so use it to get back to a known state, not to get to an empty one.
 
 The local server keeps running between sessions. Manage it with `npx prisma dev ls`, `stop`, `start` and `rm`.
 
 An AI provider key (`ANTHROPIC_API_KEY`, `DEEPSEEK_API_KEY` or `OPENROUTER_API_KEY`) is optional for local use. The app runs without one; only the job-description analyzer needs it.
 
-That is the whole setup. There is no account to create, no server to rent, and nothing phones home. If you never deploy it, nothing is missing.
+That is the whole setup. There is no account to create and no server to rent. The only traffic that leaves your machine is what you ask for: the AI features send job and resume text to whichever provider you configure, and the optional Adzuna sync queries Adzuna. Turn neither on and nothing leaves. If you never deploy it, nothing is missing.
 
 > **Note on Prisma.** Keep the CLI pinned to `prisma@^6`. Version 7 removes the `url =` syntax this schema uses and will fail to generate.
 >
@@ -97,12 +97,12 @@ Apto exposes twelve tools. They are defined once in `lib/assistant-tools.ts` and
 | `apto_get_daily_context` | Reads the deadline, today's progress, the ranked queue, open follow-ups, skills and resume context | One call, the whole picture |
 | `apto_import_job_candidates` | Validates and idempotently imports candidates | Merges on title and company. **Importing is not applying** |
 | `apto_record_job_analysis` | Persists a structured analysis of a job description | Stored as JSON on the job |
-| `apto_record_application` | Marks a job applied and sets the follow-up clock | The only path to `appliedAt` |
+| `apto_record_application` | Marks a job applied and sets the follow-up clock | Idempotent, and refuses to reopen a closed job without `correction: true` |
 | `apto_add_job_update` | Appends a timestamped event to a job's timeline | Notes never overwrite |
 | `apto_close_job` | Moves a job to a terminal status | Restricted to `CLOSED`, `REJECTED`, `WITHDRAWN`, `STALLED` |
 | `apto_close_action` | Resolves an open action item | Appends notes rather than replacing them |
 | `apto_record_learning` | Records a practice session against a skill | Feeds the gap analysis |
-| `apto_list_jobs` | Retrieves jobs matching optional filters | Supports status, pagination, sorting |
+| `apto_list_jobs` | Retrieves jobs matching optional filters | Filters by status, caps rows (50 default, 200 max), newest first |
 | `apto_add_job` | Creates a new job in the database | Returns the created job record |
 | `apto_update_job` | Updates an existing job | Partial updates, returns the modified record |
 | `apto_delete_jobs` | Permanently removes one or more jobs | Irreversible; use with caution |
@@ -126,11 +126,24 @@ Point any MCP client at the stdio bridge:
 }
 ```
 
-`APTO_BASE_URL` has no default. Set it to your own instance, local or deployed.
+`APTO_BASE_URL` has no default. Set it to your own instance, local or deployed. `npm install` at the
+repository root installs the bridge's dependencies too, so there is no separate install step.
 
-### Two rules, both learned from a bug
+The HTTP endpoint at `/api/mcp` is a different door with a different key: it needs `APTO_MCP_TOKEN`,
+and it returns 401 to everything when that variable is unset, in development as well as production.
+Two credentials rather than one is deliberate. The stdio bridge runs on your machine and uses
+`APTO_API_KEY`; `/api/mcp` is reachable from the internet on a deployed instance, and revoking one
+should not revoke the other.
+
+### Three rules, all learned from a bug
 
 **Writes are never retried.** `aptoFetch` retries once on transport failures and 5xx, but only for reads. A write that timed out may still have landed, and a blind retry turns one application into two. Failed writes return a hint telling the caller to check before resending. This exists because an earlier version did retry, and produced a duplicate submission to a company that had already seen the candidate.
+
+**Asking twice is not applying twice.** `apto_record_application` returns the existing record
+unchanged when the application is already logged, and refuses outright on a job that has been closed
+or rejected. It used to overwrite `appliedAt` and append a second history row every time it was
+called, which meant a duplicated call destroyed the real submission date. Not retrying writes at the
+transport layer only stops the machine from asking twice; this stops anything else from doing it.
 
 **Recording a note is not changing state.** Both `apto_close_job` and `apto_close_action` exist because the first version only had `apto_add_job_update`, which wrote a note and left `status` untouched. Dead jobs kept resurfacing in the ranked queue, because the queue filters on status and the status had never moved. If your agent can describe something but not change it, it will describe it forever.
 
@@ -186,7 +199,7 @@ If you still want it, Apto runs on any Node host. The reference deployment is Ve
 
 ## Roadmap
 
-- [ ] Cover letter generator with a house-style module rather than a bare prompt
+- [ ] House-style module for the cover letter generator, which currently ships as a bare prompt
 - [ ] Resume tailoring against a specific job description
 - [ ] Fit-weighted gap heatmap across the whole pipeline
 - [ ] Packaged desktop build, so setup is an install rather than a terminal session

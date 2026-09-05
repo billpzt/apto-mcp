@@ -250,6 +250,38 @@ export async function deleteJobs(input: { jobIds: unknown }) {
   return { deleted, notFound };
 }
 
+// Statuses at which no application has been submitted yet. Only these are safe
+// targets for the fuzzy title+company dedup branch. Before this distinction
+// existed, a genuinely NEW posting from a company you had already applied to
+// silently merged into the applied record, because the fuzzy branch excluded
+// only the dead statuses. The new opening vanished from the pipeline and the
+// applied record had its verification fields rewritten with candidate data,
+// which is how an applied job could come back looking freshly sourced today.
+const PRE_APPLICATION_STATUSES = ["BACKLOG", "PROFILE_LIVE"];
+
+// Hosts that hand out a fresh per-impression redirect for the same posting.
+// Two different to.indeed.com links routinely point at one job, so a URL here
+// is NOT a reliable identity: dedup silently falls through to the fuzzy
+// title+company branch, which is exactly where the damage used to happen.
+// Worth saying out loud in the import result so the operator knows the match
+// was weak rather than assuming Apto checked properly.
+const REDIRECT_HOSTS = ["to.indeed.com", "cts.indeed.com", "lnkd.in", "bit.ly"];
+
+function isRedirectUrl(url: string | null | undefined) {
+  if (!url) return false;
+  try {
+    return REDIRECT_HOSTS.includes(new URL(url).hostname.toLowerCase());
+  } catch {
+    return false;
+  }
+}
+
+// Statuses where a real application (or an active conversation) exists, so the
+// record carries history that an import must never overwrite.
+function isPostApplication(status: string) {
+  return !PRE_APPLICATION_STATUSES.includes(status) && !DEAD_JOB_STATUSES.includes(status);
+}
+
 export async function importJobCandidates(
   inputs: AssistantJobCandidateInput[]
 ): Promise<{ results: AssistantItemResult[] }> {
@@ -257,50 +289,36 @@ export async function importJobCandidates(
   for (let index = 0; index < inputs.length; index += 1) {
     try {
       const candidate = normalizeCandidate(inputs[index]);
-      const existing = await db.job.findFirst({
-        where: {
-          OR: [
-            ...(candidate.canonicalUrl ? [
-              { canonicalUrl: candidate.canonicalUrl },
-              { url: candidate.canonicalUrl },
-            ] : []),
-            {
-              company: { equals: candidate.company, mode: "insensitive" },
-              title: { equals: candidate.title, mode: "insensitive" },
-              status: { notIn: ["CLOSED", "REJECTED", "WITHDRAWN"] },
-            },
-          ],
-        },
-      });
 
-      if (existing) {
-        const updated = await db.job.update({
-          where: { id: existing.id },
-          data: {
-            canonicalUrl: existing.canonicalUrl ?? candidate.canonicalUrl,
-            url: existing.url ?? candidate.url,
-            titleFamily: existing.titleFamily ?? candidate.titleFamily,
-            remoteScope: candidate.remoteScope ?? existing.remoteScope,
-            eligibleFromBrazil: candidate.eligibleFromBrazil,
-            eligibilityEvidence: candidate.eligibilityEvidence ?? existing.eligibilityEvidence,
-            postedAt: existing.postedAt ?? candidate.postedAt,
-            lastVerifiedAt: candidate.lastVerifiedAt,
-            location: existing.location ?? candidate.location,
-            salary: existing.salary ?? candidate.salary,
-            jobType: existing.jobType ?? candidate.jobType,
-            jdText: existing.jdText ?? candidate.jdText,
-            score: candidate.score ?? existing.score,
-            priority: candidate.priority ?? existing.priority,
-            sourceType: existing.sourceType ?? candidate.sourceType,
+      // Two distinct kinds of match, deliberately resolved in priority order.
+      // A URL match means it is literally the same posting, so merging is
+      // correct at any status. A title+company match only means "same company
+      // is hiring a similar role", which is NOT evidence of the same posting.
+      const candidateUrls = [candidate.canonicalUrl, candidate.url].filter(
+        (u): u is string => typeof u === "string" && u.length > 0
+      );
+      const samePosting = candidateUrls.length
+        ? await db.job.findFirst({
+            where: {
+              OR: [
+                { canonicalUrl: { in: candidateUrls } },
+                { url: { in: candidateUrls } },
+              ],
+            },
+          })
+        : null;
+
+      const existing =
+        samePosting ??
+        (await db.job.findFirst({
+          where: {
+            company: { equals: candidate.company, mode: "insensitive" },
+            title: { equals: candidate.title, mode: "insensitive" },
+            status: { notIn: DEAD_JOB_STATUSES },
           },
-        });
-        results.push({
-          index,
-          status: "merged",
-          jobId: updated.id,
-          message: `Merged with ${updated.company}: ${updated.title}`,
-        });
-      } else {
+        }));
+
+      if (!existing) {
         const created = await db.job.create({ data: candidate });
         results.push({
           index,
@@ -308,7 +326,90 @@ export async function importJobCandidates(
           jobId: created.id,
           message: `Created ${created.company}: ${created.title}`,
         });
+        continue;
       }
+
+      // Fuzzy match against a record that already has an application or a live
+      // conversation behind it: refuse to touch it. Surfacing this as a skip
+      // rather than a silent merge is the whole point, because the operator
+      // needs to see that a possibly-new opening was found at a company
+      // already in flight, and decide for themselves.
+      if (!samePosting && isPostApplication(existing.status)) {
+        results.push({
+          index,
+          status: "skipped",
+          jobId: existing.id,
+          message:
+            `Not merged. "${candidate.title}" at ${candidate.company} matches an existing record ` +
+            `by title and company, but that record is ${existing.status}` +
+            (existing.appliedAt ? ` (applied ${existing.appliedAt.toISOString().slice(0, 10)})` : "") +
+            `. This may be a different, newer posting. Review it and, if it is genuinely a separate ` +
+            `opening, add it with apto_add_job and allowDuplicate.` +
+            (isRedirectUrl(candidate.canonicalUrl) || isRedirectUrl(existing.canonicalUrl)
+              ? ` Note: one of these URLs is a redirect link, which is not a stable identifier. The same posting can produce several, so URL matching could not settle this either way.`
+              : ""),
+        });
+        continue;
+      }
+
+      // Merge. Existing values always win for anything that could carry
+      // human-entered history; the candidate only fills blanks. The three
+      // fields that previously overwrote unconditionally, eligibleFromBrazil,
+      // lastVerifiedAt and remoteScope, are the ones that made an applied
+      // record look freshly verified, so they now only advance on a true URL
+      // match.
+      const updated = await db.$transaction(async (tx) => {
+        const job = await tx.job.update({
+          where: { id: existing.id },
+          data: {
+            canonicalUrl: existing.canonicalUrl ?? candidate.canonicalUrl,
+            url: existing.url ?? candidate.url,
+            titleFamily: existing.titleFamily ?? candidate.titleFamily,
+            remoteScope: existing.remoteScope ?? candidate.remoteScope,
+            eligibleFromBrazil: existing.eligibleFromBrazil ?? candidate.eligibleFromBrazil,
+            eligibilityEvidence: existing.eligibilityEvidence ?? candidate.eligibilityEvidence,
+            postedAt: existing.postedAt ?? candidate.postedAt,
+            ...(samePosting && candidate.lastVerifiedAt
+              ? { lastVerifiedAt: candidate.lastVerifiedAt }
+              : {}),
+            location: existing.location ?? candidate.location,
+            salary: existing.salary ?? candidate.salary,
+            jobType: existing.jobType ?? candidate.jobType,
+            jdText: existing.jdText ?? candidate.jdText,
+            score: existing.score ?? candidate.score,
+            priority: existing.priority ?? candidate.priority,
+            sourceType: existing.sourceType ?? candidate.sourceType,
+          },
+        });
+        // Every merge leaves a trace. Without this a record could change
+        // underneath the operator with nothing in its history to explain it.
+        await tx.jobUpdate.create({
+          data: {
+            jobId: job.id,
+            occurredAt: new Date(),
+            kind: "import_merge",
+            summary: samePosting
+              ? "Re-imported: same posting matched by URL"
+              : "Re-imported: matched by title and company",
+            details:
+              `Import merged into this record (status ${existing.status}). ` +
+              `Only blank fields were filled; existing values were preserved.` +
+              (samePosting && candidate.lastVerifiedAt
+                ? ` lastVerifiedAt advanced to ${candidate.lastVerifiedAt.toISOString().slice(0, 10)}.`
+                : ""),
+          },
+        });
+        return job;
+      });
+
+      results.push({
+        index,
+        status: "merged",
+        jobId: updated.id,
+        message:
+          `Merged with ${updated.company}: ${updated.title}` +
+          (samePosting ? " (same posting, matched by URL)" : " (matched by title and company)"),
+      });
     } catch (error) {
       results.push({
         index,
@@ -326,6 +427,30 @@ export async function recordApplication(input: RecordApplicationInput) {
   return db.$transaction(async (tx) => {
     const existing = await tx.job.findUnique({ where: { id: value.jobId } });
     if (!existing) throw new Error("Job not found");
+
+    // Recording an application is not a safe thing to repeat. It used to
+    // overwrite appliedAt, append a second history row and happily reopen a
+    // rejected job, so a duplicated call lost the real submission date. The
+    // transport already refuses to retry writes; this covers the other route
+    // to the same damage, which is a caller simply asking twice.
+    if (existing.appliedAt && !value.correction) {
+      const alreadyRecorded = existing.appliedAt.getTime() === value.submittedAt.getTime();
+      if (alreadyRecorded) return existing;
+      throw new Error(
+        `${existing.company}: ${existing.title} is already recorded as applied on ` +
+          `${existing.appliedAt.toISOString()}. Pass correction: true to replace that date, ` +
+          `and only if it is wrong. If this is a second application to a different posting, ` +
+          `create a separate job instead.`
+      );
+    }
+
+    if (DEAD_JOB_STATUSES.includes(existing.status) && !value.correction) {
+      throw new Error(
+        `${existing.company}: ${existing.title} is ${existing.status}. Recording an application ` +
+          `would silently reopen it. Pass correction: true if that is genuinely what you mean.`
+      );
+    }
+
     const job = await tx.job.update({
       where: { id: value.jobId },
       data: {
