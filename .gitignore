@@ -56,3 +56,8 @@ apto-log-export-*.json
 .serena/
 .claude/settings.local.json
 .foreman/
+
+# Generated job exports. Every file here holds company names, job titles,
+# statuses and timeline notes from a real pipeline. The database is ignored
+# above; these are the same data in markdown and must be ignored too.
+/data/
