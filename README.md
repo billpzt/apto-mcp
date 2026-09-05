@@ -128,7 +128,7 @@ Point any MCP client at the stdio bridge:
 
 `APTO_BASE_URL` has no default. Set it to your own instance, local or deployed.
 
-### Two design decisions worth stealing
+### Two rules, both learned from a bug
 
 **Writes are never retried.** `aptoFetch` retries once on transport failures and 5xx, but only for reads. A write that timed out may still have landed, and a blind retry turns one application into two. Failed writes return a hint telling the caller to check before resending. This exists because an earlier version did retry, and produced a duplicate submission to a company that had already seen the candidate.
 
