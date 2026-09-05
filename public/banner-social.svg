@@ -57,7 +57,7 @@
     <text x="100" y="382">can actually operate.</text>
   </g>
 
-  <text x="100" y="432" font-family="ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif" font-size="21" fill="#7C8CA6">An MCP server over your job search, plus the dashboard to read it.</text>
+  <text x="100" y="432" font-family="ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif" font-size="22" fill="#94A3B8">An MCP server over your job search, plus the dashboard to read it.</text>
 
   <g font-family="ui-monospace,SFMono-Regular,Menlo,monospace" font-size="16" fill="#94A3B8">
     <rect x="100" y="470" width="139" height="36" rx="18" fill="#16233A" stroke="#243350"/>
