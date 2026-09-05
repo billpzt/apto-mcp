@@ -1,7 +1,6 @@
 import { db } from "@/lib/db";
 import { serializeDate } from "@/lib/date";
 import { AiSettingsForm } from "@/components/AiSettingsForm";
-import { PasswordForm } from "@/components/PasswordForm";
 import { AtomLearnSettingsForm } from "@/components/AtomLearnSettingsForm";
 import { AdzunaSettingsForm } from "@/components/AdzunaSettingsForm";
 import { WorkspaceSyncSettingsForm } from "@/components/WorkspaceSyncSettingsForm";
@@ -100,7 +99,13 @@ export default async function SettingsPage() {
         <div className="mb-4">
           <h1 className="text-lg font-semibold text-gray-900">Security</h1>
         </div>
-        <PasswordForm />
+        <p className="text-sm text-gray-600">
+          Access is gated by the <code className="rounded bg-gray-100 px-1">APP_PASSWORD</code>{" "}
+          environment variable. Change it there and restart to rotate it, which signs every
+          existing session out. There is no in-app password change: sessions are verified at the
+          edge without a database round trip, so a password stored in the database could be
+          changed without any existing session losing access.
+        </p>
       </section>
 
     </div>

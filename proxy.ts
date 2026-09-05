@@ -1,20 +1,29 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { verifySessionToken } from "@/lib/session";
 
 const PASSWORD = process.env.APP_PASSWORD;
 const API_KEY = process.env.APTO_API_KEY;
 const COOKIE = "apto_session";
 
-export function proxy(req: NextRequest) {
-  // Skip auth if no password is set (local dev without APP_PASSWORD)
-  if (!PASSWORD) return NextResponse.next();
+export async function proxy(req: NextRequest) {
+  // Without a password there is nothing to check. That is fine on a laptop and
+  // unacceptable on a public host, so a deployed instance fails closed instead
+  // of quietly serving the whole pipeline to anyone who finds the URL.
+  if (!PASSWORD) {
+    if (process.env.NODE_ENV !== "production") return NextResponse.next();
+    return new NextResponse(
+      "APP_PASSWORD is not set. A deployed Apto refuses to serve until it is.",
+      { status: 503, headers: { "content-type": "text/plain" } }
+    );
+  }
 
   const { pathname } = req.nextUrl;
 
   // Always allow the login page and its POST handler
   if (pathname === "/login") return NextResponse.next();
 
-  // Allow all auth API routes (login, logout, change-password)
+  // Allow all auth API routes (login, logout)
   if (pathname.startsWith("/api/auth/")) return NextResponse.next();
 
   // Allow remote MCP endpoint — checked by the route itself (supports Bearer token)
@@ -43,8 +52,9 @@ export function proxy(req: NextRequest) {
   }
 
   // Check session cookie
-  const session = req.cookies.get(COOKIE)?.value;
-  if (session === PASSWORD) return NextResponse.next();
+  if (await verifySessionToken(req.cookies.get(COOKIE)?.value, PASSWORD)) {
+    return NextResponse.next();
+  }
 
   // Redirect to login, preserving intended destination
   const url = req.nextUrl.clone();

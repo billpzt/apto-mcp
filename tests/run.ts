@@ -1,4 +1,10 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
+import {
+  createSessionToken,
+  SESSION_MAX_AGE_SECONDS,
+  verifySessionToken,
+} from "../lib/session";
 import { ACTION_STATUSES, JOB_STATUSES, KANBAN_STATUSES, STATUS_CONFIG } from "../lib/constants";
 import { parseOptionalDate } from "../lib/date";
 import { buildActionCreatePayload, buildDashboard } from "../lib/dashboard";
@@ -367,6 +373,50 @@ test("job updates markdown path uses a stable slug", () => {
   );
 });
 
+// Every path the app writes pipeline data to must be gitignored. The whole
+// local-first promise is that a job search never leaves the machine, and a
+// user who runs `git add .` should not be able to publish one by accident.
+// The session cookie is the only thing between a deployed instance and the
+// whole pipeline, so these cover the three ways it can go wrong: a forged
+// signature, a token outliving its expiry, and a rotated password failing to
+// revoke anything.
+async function sessionTokensRoundTrip() {
+  const token = await createSessionToken("correct horse battery staple");
+  assert.equal(await verifySessionToken(token, "correct horse battery staple"), true);
+
+  assert.equal(await verifySessionToken(token, "a different password"), false);
+  // Flip the last character to a different one rather than to a fixed value,
+  // which silently passed whenever the signature already ended in that value.
+  const lastCharacter = token.slice(-1);
+  const tampered = token.slice(0, -1) + (lastCharacter === "0" ? "1" : "0");
+  assert.notEqual(tampered, token);
+  assert.equal(await verifySessionToken(tampered, "correct horse battery staple"), false);
+  assert.equal(await verifySessionToken("not-a-token", "correct horse battery staple"), false);
+  assert.equal(await verifySessionToken(undefined, "correct horse battery staple"), false);
+}
+
+async function sessionTokensExpire() {
+  const issuedAt = Date.now();
+  const token = await createSessionToken("hunter2", issuedAt);
+  const oneSecondBeforeExpiry = issuedAt + SESSION_MAX_AGE_SECONDS * 1000 - 1000;
+  const oneSecondAfterExpiry = issuedAt + SESSION_MAX_AGE_SECONDS * 1000 + 1000;
+
+  assert.equal(await verifySessionToken(token, "hunter2", oneSecondBeforeExpiry), true);
+  assert.equal(await verifySessionToken(token, "hunter2", oneSecondAfterExpiry), false);
+}
+
+test("generated pipeline data paths are gitignored", () => {
+  const generatedPaths = [
+    getJobUpdatesMarkdownPath("Northwind Systems", "Field Delivery Engineer"),
+  ];
+  for (const generated of generatedPaths) {
+    const result = spawnSync("git", ["check-ignore", "-q", generated], {
+      cwd: process.cwd(),
+    });
+    assert.equal(result.status, 0, `${generated} is not gitignored`);
+  }
+});
+
 test("job updates markdown renders dated timeline entries", () => {
   const markdown = buildJobUpdatesMarkdown(
     {
@@ -708,6 +758,8 @@ async function runAsyncTest(name: string, fn: () => Promise<void>) {
 
 // Run async tests (subprocess-based checks that must run after sync tests)
 (async () => {
+  await runAsyncTest("session tokens round-trip and reject tampering", sessionTokensRoundTrip);
+  await runAsyncTest("session tokens stop verifying after they expire", sessionTokensExpire);
   await runAsyncTest(
     "stdio bridge exposes exactly the tools in lib/assistant-tools.ts",
     checkMcpParity

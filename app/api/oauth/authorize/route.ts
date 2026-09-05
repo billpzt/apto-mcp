@@ -1,10 +1,11 @@
 /**
  * OAuth 2.1 authorization endpoint (single-tenant, auto-approve).
  *
- * Bill is the only legitimate client, gated by APTO_OAUTH_CLIENT_ID and a
- * fixed Claude redirect URI, so there is no hosted consent screen here —
- * a valid request is redirected straight back with a short-lived code.
- * PKCE (S256) is still required and enforced at the token endpoint.
+ * One legitimate client, gated by APTO_OAUTH_CLIENT_ID and a fixed Claude
+ * redirect URI, so there is no hosted consent screen here: a valid request is
+ * redirected straight back with a short-lived code. Nothing here proves the
+ * caller is the owner, so the code is useless on its own. Both PKCE (S256)
+ * and the confidential client secret are enforced at the token endpoint.
  */
 import { NextRequest, NextResponse } from "next/server";
 import { isAllowedRedirectUri, isKnownClient, issueAuthCode } from "@/lib/oauth";

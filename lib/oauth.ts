@@ -4,10 +4,16 @@
  * ID/Secret + authorization_code + PKCE), not a raw bearer-token field, so
  * this wraps the existing static APTO_MCP_TOKEN behind a real OAuth flow.
  *
- * There is exactly one legitimate client (Bill's Cowork connector), so this
- * intentionally skips a hosted consent screen: /authorize auto-approves any
- * request whose client_id matches APTO_OAUTH_CLIENT_ID and whose
- * redirect_uri is the known Claude callback. The authorization code itself
+ * There is exactly one legitimate client, so this intentionally skips a hosted
+ * consent screen: /authorize auto-approves any request whose client_id matches
+ * APTO_OAUTH_CLIENT_ID and whose redirect_uri is the known Claude callback.
+ * Because nothing at /authorize authenticates the owner, the confidential
+ * client secret at the token endpoint is the only thing standing between a
+ * stranger and an access token. APTO_OAUTH_CLIENT_SECRET is therefore
+ * mandatory, and the whole flow is unavailable without it.
+ *
+ * Known limitation: codes are stateless, so they are replayable for their
+ * 120-second lifetime. Redemption still requires the client secret. The authorization code itself
  * is a short-lived, HMAC-signed, stateless token (no DB table needed) that
  * embeds the PKCE code_challenge, redirect_uri, and client_id.
  */
@@ -90,8 +96,13 @@ export function isKnownClient(clientId: string | null): boolean {
 
 export function clientSecretMatches(clientSecret: string | null): boolean {
   const expected = process.env.APTO_OAUTH_CLIENT_SECRET;
-  // If no secret is configured server-side, treat this as a public client
-  // (PKCE is still required, so this remains safe).
-  if (!expected) return true;
+  // Fails closed. This used to fall back to a public client on the reasoning
+  // that PKCE kept it safe, which was wrong: PKCE proves the caller that
+  // redeemed a code is the one that requested it, and proves nothing about
+  // who that caller is. Since /authorize auto-approves without asking the
+  // owner anything, a stranger who knew the client_id could request a code
+  // with a verifier they generated and exchange it for full pipeline access.
+  // The secret is what makes the client confidential, so it is required.
+  if (!expected) return false;
   return clientSecret === expected;
 }

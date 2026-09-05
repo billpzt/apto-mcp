@@ -1,39 +1,28 @@
 import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { createSessionToken, SESSION_MAX_AGE_SECONDS } from "@/lib/session";
 
-const ENV_PASSWORD = process.env.APP_PASSWORD;
+const PASSWORD = process.env.APP_PASSWORD;
 const COOKIE = "apto_session";
-const ONE_YEAR = 60 * 60 * 24 * 365;
-
-async function getActivePassword(): Promise<string | null> {
-  try {
-    const config = await db.appConfig.findUnique({ where: { key: "login_password" } });
-    if (config?.value) return config.value;
-  } catch {}
-  return ENV_PASSWORD ?? null;
-}
 
 export async function POST(req: Request) {
   const { password } = await req.json();
 
-  const activePassword = await getActivePassword();
-
-  if (!activePassword) {
+  if (!PASSWORD) {
     return NextResponse.json({ error: "No password configured" }, { status: 500 });
   }
-
-  if (password !== activePassword) {
+  if (password !== PASSWORD) {
     return NextResponse.json({ error: "Wrong password" }, { status: 401 });
   }
 
-  // Cookie stores the env var so Edge proxy (which can't hit DB) can validate sessions
-  const sessionValue = ENV_PASSWORD ?? activePassword;
+  // The cookie carries a signed, expiring token rather than the password, so a
+  // stolen cookie cannot be replayed as the credential itself and rotating
+  // APP_PASSWORD invalidates it. The Edge proxy verifies it without a database.
   const res = NextResponse.json({ ok: true });
-  res.cookies.set(COOKIE, sessionValue, {
+  res.cookies.set(COOKIE, await createSessionToken(PASSWORD), {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
-    maxAge: ONE_YEAR,
+    maxAge: SESSION_MAX_AGE_SECONDS,
     path: "/",
   });
   return res;
