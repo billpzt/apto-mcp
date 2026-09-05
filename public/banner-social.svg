@@ -1,8 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 640" width="1280" height="640" role="img" aria-label="Apto: the career database your AI agent can actually operate">
-  <!-- GitHub social preview card. Same artwork as banner.svg (1280x400), padded to the
-       2:1 ratio GitHub expects so nothing gets stretched. Export this one at 1280x640. -->
-  <rect width="1280" height="640" fill="url(#bg)"/>
-  <g transform="translate(0,120)">
+  <!-- Social preview card, 1280x640. Composed natively at 2:1 rather than padding
+       banner.svg (which is 3.2:1) into the frame, because that left dead bands top
+       and bottom and made the type look small wherever the card gets downscaled.
+       The tagline is set over two lines so it can be large enough to read in a feed. -->
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0%" stop-color="#0B1120"/>
@@ -23,48 +23,52 @@
     </filter>
   </defs>
 
-  
-  <!-- subtle grid -->
+  <rect width="1280" height="640" fill="url(#bg)"/>
+
+  <!-- subtle grid, now spanning the whole canvas -->
   <g stroke="#1E2D4A" stroke-width="1" opacity="0.55">
-    <path d="M0 80H1280M0 160H1280M0 240H1280M0 320H1280"/>
-    <path d="M160 0V400M320 0V400M480 0V400M640 0V400M800 0V400M960 0V400M1120 0V400"/>
+    <path d="M0 80H1280M0 160H1280M0 240H1280M0 320H1280M0 400H1280M0 480H1280M0 560H1280"/>
+    <path d="M160 0V640M320 0V640M480 0V640M640 0V640M800 0V640M960 0V640M1120 0V640"/>
   </g>
 
   <!-- pipeline motif: agent to database -->
   <g opacity="0.85">
-    <circle cx="880" cy="200" r="46" fill="none" stroke="url(#accent)" stroke-width="2"/>
-    <circle cx="880" cy="200" r="9" fill="#38BDF8" filter="url(#glow)"/>
-    <text x="880" y="272" text-anchor="middle" font-family="ui-monospace,SFMono-Regular,Menlo,monospace" font-size="15" fill="#64748B">agent</text>
+    <circle cx="900" cy="284" r="50" fill="none" stroke="url(#accent)" stroke-width="2"/>
+    <circle cx="900" cy="284" r="10" fill="#38BDF8" filter="url(#glow)"/>
+    <text x="900" y="364" text-anchor="middle" font-family="ui-monospace,SFMono-Regular,Menlo,monospace" font-size="17" fill="#64748B">agent</text>
 
-    <path d="M932 200H1058" stroke="url(#fade)" stroke-width="2" stroke-dasharray="7 7"/>
-    <path d="M1046 193l13 7-13 7" fill="none" stroke="#38BDF8" stroke-width="2" opacity="0.7"/>
+    <path d="M956 284H1046" stroke="url(#fade)" stroke-width="2" stroke-dasharray="7 7"/>
+    <path d="M1034 277l13 7-13 7" fill="none" stroke="#38BDF8" stroke-width="2" opacity="0.7"/>
 
-    <g transform="translate(1080,158)">
+    <g transform="translate(1070,240) scale(1.05)">
       <ellipse cx="52" cy="14" rx="52" ry="14" fill="none" stroke="#818CF8" stroke-width="2"/>
       <path d="M0 14v56c0 7.7 23.3 14 52 14s52-6.3 52-14V14" fill="none" stroke="#818CF8" stroke-width="2"/>
       <path d="M0 42c0 7.7 23.3 14 52 14s52-6.3 52-14" fill="none" stroke="#818CF8" stroke-width="2" opacity="0.6"/>
     </g>
-    <text x="1132" y="272" text-anchor="middle" font-family="ui-monospace,SFMono-Regular,Menlo,monospace" font-size="15" fill="#64748B">apto</text>
+    <text x="1125" y="364" text-anchor="middle" font-family="ui-monospace,SFMono-Regular,Menlo,monospace" font-size="17" fill="#64748B">apto</text>
   </g>
 
   <!-- wordmark -->
-  <text x="96" y="168" font-family="ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif" font-size="104" font-weight="700" fill="#F8FAFC" letter-spacing="-3">Apto</text>
-  <rect x="99" y="188" width="104" height="4" rx="2" fill="url(#accent)"/>
+  <text x="100" y="225" font-family="ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif" font-size="118" font-weight="700" fill="#F8FAFC" letter-spacing="-3">Apto</text>
+  <rect x="103" y="247" width="118" height="5" rx="2.5" fill="url(#accent)"/>
 
-  <text x="96" y="238" font-family="ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif" font-size="26" font-weight="500" fill="#CBD5E1">The career database your AI agent can actually operate.</text>
-  <text x="96" y="278" font-family="ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif" font-size="19" fill="#7C8CA6">An MCP server over your job search, plus the dashboard to read it.</text>
-
-  <g font-family="ui-monospace,SFMono-Regular,Menlo,monospace" font-size="14" fill="#94A3B8">
-    <rect x="96" y="306" width="122" height="30" rx="15" fill="#16233A" stroke="#243350"/>
-    <text x="157" y="326" text-anchor="middle">MCP server</text>
-    <rect x="230" y="306" width="106" height="30" rx="15" fill="#16233A" stroke="#243350"/>
-    <text x="283" y="326" text-anchor="middle">Next.js 16</text>
-    <rect x="348" y="306" width="94" height="30" rx="15" fill="#16233A" stroke="#243350"/>
-    <text x="395" y="326" text-anchor="middle">Prisma</text>
-    <rect x="454" y="306" width="128" height="30" rx="15" fill="#16233A" stroke="#243350"/>
-    <text x="518" y="326" text-anchor="middle">TypeScript</text>
-    <rect x="594" y="306" width="112" height="30" rx="15" fill="#16233A" stroke="#243350"/>
-    <text x="650" y="326" text-anchor="middle">AGPL-3.0</text>
+  <g font-family="ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif" font-size="40" font-weight="500" fill="#E2E8F0">
+    <text x="100" y="330">The career database your AI agent</text>
+    <text x="100" y="382">can actually operate.</text>
   </g>
+
+  <text x="100" y="432" font-family="ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif" font-size="21" fill="#7C8CA6">An MCP server over your job search, plus the dashboard to read it.</text>
+
+  <g font-family="ui-monospace,SFMono-Regular,Menlo,monospace" font-size="16" fill="#94A3B8">
+    <rect x="100" y="470" width="139" height="36" rx="18" fill="#16233A" stroke="#243350"/>
+    <text x="169" y="493" text-anchor="middle">MCP server</text>
+    <rect x="253" y="470" width="121" height="36" rx="18" fill="#16233A" stroke="#243350"/>
+    <text x="313" y="493" text-anchor="middle">Next.js 16</text>
+    <rect x="388" y="470" width="107" height="36" rx="18" fill="#16233A" stroke="#243350"/>
+    <text x="441" y="493" text-anchor="middle">Prisma</text>
+    <rect x="509" y="470" width="146" height="36" rx="18" fill="#16233A" stroke="#243350"/>
+    <text x="582" y="493" text-anchor="middle">TypeScript</text>
+    <rect x="669" y="470" width="128" height="36" rx="18" fill="#16233A" stroke="#243350"/>
+    <text x="733" y="493" text-anchor="middle">AGPL-3.0</text>
   </g>
 </svg>
