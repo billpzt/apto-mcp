@@ -1,0 +1,49 @@
+name: Bug report
+description: Something behaves differently than documented
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Do not paste real job-search data.** Issues are public. Replace company
+        names, recruiter contacts and URLs with placeholders before submitting.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you did, what you expected, what you got instead.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. ...
+        2. ...
+    validations:
+      required: true
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Where
+      options:
+        - Web dashboard
+        - MCP tools (stdio bridge)
+        - MCP over HTTP (/api/mcp)
+        - REST API
+        - Setup / database
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Commit or version
+      placeholder: output of `git rev-parse --short HEAD`
+  - type: textarea
+    id: env
+    attributes:
+      label: Environment
+      placeholder: |
+        Node version, OS, and whether the database is local (`prisma dev`) or hosted.

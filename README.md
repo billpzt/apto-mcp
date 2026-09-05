@@ -9,6 +9,8 @@
 Apto is an MCP server over your job search, with a dashboard on top.
 Your assistant reads the pipeline, imports candidates, records analysis and files outcomes through a typed tool layer. You keep the UI for the parts humans are better at.
 
+It runs on your own machine. A job search is salary expectations, rejections and who you know, and none of that needs to live on someone else's server.
+
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 [![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)](https://nextjs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
@@ -19,6 +21,8 @@ Your assistant reads the pipeline, imports candidates, records analysis and file
 [Why it exists](#why-it-exists) · [Quick start](#quick-start) · [The agent layer](#the-agent-layer) · [Architecture](#architecture) · [Deploy](#deploy) · [Contributing](#contributing)
 
 </div>
+
+<img src="./docs/screenshots/board.png" alt="The Apto job board: pipeline columns with per-job score, priority, source, follow-up date and salary" width="100%">
 
 ---
 
@@ -54,7 +58,14 @@ Now start a local database. `prisma dev` ships inside the Prisma CLI you just in
 npx prisma dev -n apto -d     # -d runs it in the background
 ```
 
-It prints a connection string like `postgres://postgres:postgres@localhost:51214/template1?sslmode=disable`. Open `.env` and paste that same string into **both** `DATABASE_URL` and `DIRECT_URL`. Then:
+It prints a connection string like `postgres://postgres:postgres@localhost:51214/template1?sslmode=disable`. Open `.env` and paste it into **both** `DATABASE_URL` and `DIRECT_URL`, then append `&pgbouncer=true` to `DATABASE_URL` only:
+
+```bash
+DATABASE_URL="postgres://postgres:postgres@localhost:51214/template1?sslmode=disable&pgbouncer=true"
+DIRECT_URL="postgres://postgres:postgres@localhost:51214/template1?sslmode=disable"
+```
+
+That flag is not optional. `prisma dev` serves through a connection pooler, and without it Prisma reuses prepared statement names across pooled connections, so every page that reads the database fails with `prepared statement "s0" already exists`. Then:
 
 ```bash
 npm run db:push               # creates the tables
@@ -68,13 +79,7 @@ The local server keeps running between sessions. Manage it with `npx prisma dev 
 
 An AI provider key (`ANTHROPIC_API_KEY`, `DEEPSEEK_API_KEY` or `OPENROUTER_API_KEY`) is optional for local use. The app runs without one; only the job-description analyzer needs it.
 
-### Deploying
-
-For a deployed instance, use a hosted PostgreSQL such as Neon and set:
-- `DATABASE_URL` to the **pooled** connection string, with `connect_timeout=15`
-- `DIRECT_URL` to the **unpooled** endpoint, used for migrations only
-
-Serverless Postgres often idles its compute to zero, and the first query after that has to wake it. Prisma's default 5 second connect timeout can lose that race and report an unreachable database when the real problem is a cold start, which is why `connect_timeout=15` is worth setting.
+That is the whole setup. There is no account to create, no server to rent, and nothing phones home. If you never deploy it, nothing is missing.
 
 > **Note on Prisma.** Keep the CLI pinned to `prisma@^6`. Version 7 removes the `url =` syntax this schema uses and will fail to generate.
 >
@@ -129,6 +134,12 @@ Point any MCP client at the stdio bridge:
 
 **Recording a note is not changing state.** Both `apto_close_job` and `apto_close_action` exist because the first version only had `apto_add_job_update`, which wrote a note and left `status` untouched. Dead jobs kept resurfacing in the ranked queue, because the queue filters on status and the status had never moved. If your agent can describe something but not change it, it will describe it forever.
 
+### Skills, tracked against what the pipeline actually asks for
+
+<img src="./docs/screenshots/skills.png" alt="The Apto skills page: skills grouped by category with experience and proficiency, plus practice log and gap analysis tabs" width="100%">
+
+Skill levels can be edited by hand, extracted from your resume, or synced from an external learning tool. The gap analysis reads the job descriptions you have analyzed and reports which requirements keep appearing that you do not have yet.
+
 ## Architecture
 
 ```
@@ -156,9 +167,13 @@ apto/
 
 **A note on the MCP bridge.** `apto-mcp/index.js` contains no database code at all. It reads `APTO_API_KEY` and calls `APTO_BASE_URL` over HTTP. Prisma runs in the Next.js app. If a tool reports that it cannot reach the database, that error came from the deployed app's environment, not from the bridge, so editing the bridge's environment will not fix it.
 
-## Deploy
+## Optional: running it on a server
 
-Apto runs on any Node host. The reference deployment is Vercel plus a serverless Postgres.
+You do not need this. Local is the supported path and the one the quick start describes.
+
+Host it only if you actually need the pipeline reachable from a phone or a second machine, and know what you are taking on: a public URL over your job search needs a password, `APP_PASSWORD` is a single shared secret rather than real user accounts, and your application history moves onto infrastructure you do not own. For one person on one laptop, that is a worse trade.
+
+If you still want it, Apto runs on any Node host. The reference deployment is Vercel plus a serverless Postgres.
 
 1. Create the database and copy both connection strings.
 2. Set the environment variables from `.env.example` in your host's dashboard, not in a committed file.
@@ -174,8 +189,8 @@ Apto runs on any Node host. The reference deployment is Vercel plus a serverless
 - [ ] Cover letter generator with a house-style module rather than a bare prompt
 - [ ] Resume tailoring against a specific job description
 - [ ] Fit-weighted gap heatmap across the whole pipeline
-- [ ] Multi-user authentication
-- [ ] Public shareable profile at `/p/[username]`
+- [ ] Packaged desktop build, so setup is an install rather than a terminal session
+- [ ] Export and import of the whole pipeline, so the data outlives any one machine
 
 ## Contributing
 

@@ -1,0 +1,26 @@
+name: Feature request
+description: Suggest something Apto should do
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: Describe the situation in a job search where the current behaviour falls short. Problems are easier to evaluate than solutions.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you have in mind
+  - type: checkboxes
+    id: state
+    attributes:
+      label: Does this change application state?
+      options:
+        - label: This would let an agent or automation change a job's status, applied date, or history
+  - type: markdown
+    attributes:
+      value: |
+        If you ticked that box, say how the change stays explicit, reversible and logged.
+        Apto's rule is that nothing moves a job between columns silently.
