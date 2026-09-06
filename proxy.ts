@@ -29,6 +29,11 @@ export async function proxy(req: NextRequest) {
   // Allow remote MCP endpoint — checked by the route itself (supports Bearer token)
   if (pathname === "/api/mcp") return NextResponse.next();
 
+  // Workspace sync carries its own credential, the workspace_sync_key stored in
+  // AppConfig, which this layer knows nothing about. The route compares it
+  // itself and 401s on a miss, so passing through here does not open it up.
+  if (pathname === "/api/sync/workspace") return NextResponse.next();
+
   // Allow the OAuth endpoints used by the Cowork MCP connector's
   // authorization_code + PKCE flow. These gate access themselves via
   // client_id/client_secret and PKCE, and must be reachable before any

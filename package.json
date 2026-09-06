@@ -11,7 +11,8 @@
     "lint": "eslint",
     "db:push": "prisma db push",
     "db:seed": "ts-node --project tsconfig.seed.json prisma/seed.ts",
-    "db:reset": "prisma db push --force-reset && npm run db:seed",
+    "db:reset": "prisma db push --force-reset",
+    "db:reset:demo": "npm run db:reset && npm run db:seed",
     "db:studio": "prisma studio",
     "db:generate": "prisma generate",
     "postinstall": "prisma generate && npm --prefix apto-mcp ci --no-audit --no-fund"

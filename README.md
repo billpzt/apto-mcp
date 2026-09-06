@@ -37,7 +37,7 @@ So the primary interface is a set of typed tools. A Claude session can open a ro
 **What that buys you**
 
 - **Continuity.** Session two knows what session one did, because it went into Postgres and not into a context window.
-- **Constraints that hold.** Importing is not applying. Moving a job to `APPLIED` is the job of one tool, `apto_record_application`, and calling it twice will not overwrite the date you already have or quietly reopen a rejection.
+- **Constraints that hold.** Importing is not applying. Across the agent surface, moving a tracked job to `APPLIED` is the job of one tool, `apto_record_application`: `apto_update_job` and `apto_close_job` both refuse that status outright, and `apto_add_job` accepts it only when you are backfilling a job you applied to before you started tracking it. Calling it twice will not overwrite the date you already have or quietly reopen a rejection. The REST API and the dashboard are not fenced this way, so the guarantee covers your agent, not your own clicking.
 - **Deduplication at the boundary.** Candidates merge on URL where there is one, and fall back to title and company only for jobs you have not applied to yet, so re-running a source rotation does not produce three copies of a posting or bulldoze a live application.
 - **An audit trail.** Applications, notes, closures and import merges each write a timestamped row rather than a paragraph in a chat log. Edits made through the REST API and the dashboard do not, so the trail is complete for agent activity and partial for your own clicking.
 
@@ -73,7 +73,10 @@ npm run db:seed               # loads the fictional demo pipeline
 npm run dev                   # http://localhost:3000
 ```
 
-You should land on a Kanban board with a demo pipeline in it. The seed data is invented. `npm run db:reset` wipes the database and seeds the same demo pipeline again, so use it to get back to a known state, not to get to an empty one.
+You should land on a Kanban board with a demo pipeline in it. The seed data is invented.
+Two ways back to a known state: `npm run db:reset` empties the database and leaves it empty,
+`npm run db:reset:demo` empties it and seeds the same demo pipeline again. Both are
+destructive and take no confirmation.
 
 The local server keeps running between sessions. Manage it with `npx prisma dev ls`, `stop`, `start` and `rm`.
 

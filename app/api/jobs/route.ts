@@ -83,7 +83,7 @@ export async function POST(req: Request) {
         },
         job.updates.map(serializeJobUpdate)
       );
-    } catch (_e) {
+    } catch {
       // read-only filesystem in prod, not fatal
     }
     return NextResponse.json(serializeJob(job), { status: 201 });
