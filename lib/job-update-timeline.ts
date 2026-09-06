@@ -1,4 +1,5 @@
 import type { SerializedJobUpdate } from "./types";
+import { formatCalendarDate } from "./date";
 
 function compareJobUpdateDates(a: SerializedJobUpdate, b: SerializedJobUpdate): number {
   return new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime();
@@ -12,8 +13,5 @@ export function getJobUpdateTimelinePreview(
 }
 
 export function formatJobUpdateOccurredAt(occurredAt: string): string {
-  return new Date(occurredAt).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-  });
+  return formatCalendarDate(occurredAt, { month: "short", day: "numeric" });
 }

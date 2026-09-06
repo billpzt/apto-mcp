@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { db } from "@/lib/db";
 import { JOB_STATUSES, type JobStatus } from "@/lib/constants";
 import { serializeJob } from "@/lib/serialize";
+import { deriveFunnelCounts } from "@/lib/funnel";
 import { FunnelHeader } from "@/components/FunnelHeader";
 import { KanbanBoard } from "@/components/KanbanBoard";
 
@@ -21,11 +22,12 @@ export default async function JobsPage() {
     acc[status] = jobs.filter((job) => job.status === status).length;
     return acc;
   }, {} as Record<JobStatus, number>);
+  const { submittedCount, respondedCount } = deriveFunnelCounts(jobs);
 
   return (
     <Suspense>
       <div className="h-screen min-w-0 overflow-hidden">
-        <FunnelHeader counts={counts} />
+        <FunnelHeader counts={counts} submittedCount={submittedCount} respondedCount={respondedCount} />
         <KanbanBoard initialJobs={serialized} />
       </div>
     </Suspense>

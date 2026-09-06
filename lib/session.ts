@@ -3,14 +3,16 @@
  *
  * The cookie used to hold the password itself, and the proxy compared it to
  * APP_PASSWORD directly. That had two problems: the credential sat in a cookie
- * in plain text, and changing the password in the database revoked nothing,
- * because the Edge proxy cannot read the database to learn it changed.
+ * in plain text, and changing the password in a database-backed config would
+ * revoke nothing automatically.
  *
  * A token is `<expiresAt>.<hmac>`, signed with APP_PASSWORD as the key. The
- * proxy verifies it with Web Crypto, no database and no extra secret to
- * configure. Changing APP_PASSWORD changes the key, so every previously issued
- * token stops verifying. That is the revocation story, and it is the reason
- * the password lives in the environment rather than in AppConfig.
+ * proxy (Next.js 16 proxy runs on Node.js, not Edge, so it could query the
+ * database) verifies the token with Web Crypto instead, so auth costs no
+ * database round trip on every request. Changing APP_PASSWORD changes the
+ * key, so every previously issued token stops verifying. That is the
+ * revocation story, and it is the reason the password lives in the
+ * environment rather than in AppConfig.
  */
 
 const encoder = new TextEncoder();

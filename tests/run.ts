@@ -6,14 +6,18 @@ import {
   verifySessionToken,
 } from "../lib/session";
 import { ACTION_STATUSES, JOB_STATUSES, KANBAN_STATUSES, STATUS_CONFIG } from "../lib/constants";
-import { parseOptionalDate } from "../lib/date";
+import { calendarDateToIso, formatCalendarDate, parseOptionalDate, isoToCalendarDate } from "../lib/date";
+import { deriveFunnelCounts, responseRate } from "../lib/funnel";
 import { buildActionCreatePayload, buildDashboard } from "../lib/dashboard";
 import { createImportedJobDraftFromParams } from "../lib/job-import";
 import {
   buildJobUpdatesMarkdown,
   getJobUpdatesMarkdownPath,
 } from "../lib/job-updates";
-import { getJobUpdateTimelinePreview } from "../lib/job-update-timeline";
+import {
+  formatJobUpdateOccurredAt,
+  getJobUpdateTimelinePreview,
+} from "../lib/job-update-timeline";
 import { sortDirectoryItems } from "../lib/directory";
 import { serializeDirectoryItem } from "../lib/serialize";
 import {
@@ -31,6 +35,7 @@ import {
   ASSISTANT_ACTION_TYPES,
   normalizeRecordApplication,
 } from "../lib/assistant-contracts";
+import { isOriginAllowed } from "../lib/origin";
 import { checkMcpParity } from "./mcp-parity";
 import type {
   SerializedActionItem,
@@ -152,6 +157,70 @@ test("kanban statuses keep directory-only profiles out but include terminal choi
 
 test("parseOptionalDate rejects invalid date strings", () => {
   assert.throws(() => parseOptionalDate("not-a-date"), /Invalid date/);
+});
+
+test("calendarDateToIso round-trips through dayKeyInTimeZone for a normal date", () => {
+  const iso = calendarDateToIso("2026-06-15");
+  assert.equal(dayKeyInTimeZone(new Date(iso), "America/Sao_Paulo"), "2026-06-15");
+});
+
+test("calendarDateToIso round-trips through dayKeyInTimeZone near a DST boundary", () => {
+  const iso = calendarDateToIso("2026-02-15");
+  assert.equal(dayKeyInTimeZone(new Date(iso), "America/Sao_Paulo"), "2026-02-15");
+});
+
+test("calendarDateToIso produces the exact ISO instant for a fixed date", () => {
+  const iso = calendarDateToIso("2026-09-05");
+  assert.equal(iso, "2026-09-05T03:00:00.000Z");
+  assert.equal(dayKeyInTimeZone(new Date(iso), "America/Sao_Paulo"), "2026-09-05");
+});
+
+test("calendarDateToIso throws on malformed calendar dates", () => {
+  assert.throws(() => calendarDateToIso("05/09/2026"), /Invalid calendar date/);
+  assert.throws(() => calendarDateToIso("2026-9-5"), /Invalid calendar date/);
+  assert.throws(() => calendarDateToIso(""), /Invalid calendar date/);
+});
+
+test("response rate is null when nothing has been submitted", () => {
+  assert.equal(responseRate(0, 0), null);
+});
+
+test("a rejection with a submission date counts as a response", () => {
+  const { submittedCount, respondedCount } = deriveFunnelCounts([
+    { status: "REJECTED", appliedAt: "2026-06-01T12:00:00.000Z" },
+  ]);
+  assert.equal(submittedCount, 1);
+  assert.equal(respondedCount, 1);
+});
+
+test("response rate cannot exceed 100% even when most applications were rejected", () => {
+  const { submittedCount, respondedCount } = deriveFunnelCounts([
+    { status: "REJECTED", appliedAt: "2026-06-01T12:00:00.000Z" },
+    { status: "REJECTED", appliedAt: "2026-06-02T12:00:00.000Z" },
+    { status: "REJECTED", appliedAt: "2026-06-03T12:00:00.000Z" },
+    { status: "REJECTED", appliedAt: "2026-06-04T12:00:00.000Z" },
+    { status: "APPLIED", appliedAt: "2026-06-05T12:00:00.000Z" },
+  ]);
+  assert.equal(submittedCount, 5);
+  assert.equal(respondedCount, 4);
+  assert.equal(responseRate(submittedCount, respondedCount), 80);
+});
+
+test("stalled and withdrawn jobs count as submitted but not as responses", () => {
+  const { submittedCount, respondedCount } = deriveFunnelCounts([
+    { status: "STALLED", appliedAt: "2026-06-01T12:00:00.000Z" },
+    { status: "WITHDRAWN", appliedAt: "2026-06-02T12:00:00.000Z" },
+  ]);
+  assert.equal(submittedCount, 2);
+  assert.equal(respondedCount, 0);
+});
+
+test("a job with no appliedAt is excluded from the denominator even when rejected", () => {
+  const { submittedCount, respondedCount } = deriveFunnelCounts([
+    { status: "REJECTED", appliedAt: null },
+  ]);
+  assert.equal(submittedCount, 0);
+  assert.equal(respondedCount, 0);
 });
 
 test("cover letter input normalization trims fields and applies defaults", () => {
@@ -501,6 +570,18 @@ test("job update timeline preview keeps newest entries first and caps the list",
   ]);
 });
 
+test("a job update's calendar date round-trips to the same day, and the timeline formatter renders that same day", () => {
+  // This is the exact regression audit finding #11 reported: a date-input
+  // value converted with calendarDateToIso must land back on the same
+  // calendar day (via dayKeyInTimeZone), and formatJobUpdateOccurredAt must
+  // display that same day, not the day before, for a viewer in the
+  // configured time zone.
+  const occurredAt = calendarDateToIso("2026-09-05");
+  assert.equal(occurredAt, "2026-09-05T03:00:00.000Z");
+  assert.equal(dayKeyInTimeZone(new Date(occurredAt), "America/Sao_Paulo"), "2026-09-05");
+  assert.equal(formatJobUpdateOccurredAt(occurredAt), "Sep 5");
+});
+
 test("directory items serialize date fields for the client", () => {
   const item = serializeDirectoryItem({
     id: "dir_1",
@@ -745,6 +826,20 @@ test("parseJdAnalysis defaults atsCheck to empty when absent", () => {
   assert.deepEqual(result.atsCheck, { present: [], missing: [], score: 0, total: 0 });
 });
 
+test("isOriginAllowed rejects an unlisted origin", () => {
+  assert.equal(isOriginAllowed("https://evil.example.com", ["https://apto-rho.vercel.app"]), false);
+});
+
+test("isOriginAllowed allows a listed origin", () => {
+  assert.equal(isOriginAllowed("https://apto-rho.vercel.app", ["https://apto-rho.vercel.app"]), true);
+});
+
+test("isOriginAllowed allows a request with no Origin header at all", () => {
+  // Hosted MCP connectors call server to server and send no Origin header.
+  // This must stay allowed or the deployed connector breaks.
+  assert.equal(isOriginAllowed(null, ["https://apto-rho.vercel.app"]), true);
+});
+
 // Async test runner for subprocess-based checks
 async function runAsyncTest(name: string, fn: () => Promise<void>) {
   try {
@@ -756,6 +851,36 @@ async function runAsyncTest(name: string, fn: () => Promise<void>) {
   }
 }
 
+test("the audit's own round trip: a stored calendar date renders as the day it was picked, not a day early", () => {
+  const iso = calendarDateToIso("2026-09-05");
+  assert.equal(formatJobUpdateOccurredAt(iso), "Sep 5");
+});
+
+test("the timezone pin holds when the runtime clock sits west of Sao Paulo", () => {
+  const originalTz = process.env.TZ;
+  process.env.TZ = "America/Los_Angeles";
+  try {
+    const iso = calendarDateToIso("2026-09-05");
+    assert.equal(formatCalendarDate(iso), "Sep 5");
+  } finally {
+    process.env.TZ = originalTz;
+  }
+});
+
+test("a January 1 calendar date does not render as December 31 across the year boundary", () => {
+  const originalTz = process.env.TZ;
+  process.env.TZ = "America/Los_Angeles";
+  try {
+    const iso = calendarDateToIso("2026-01-01");
+    assert.equal(
+      formatCalendarDate(iso, { month: "short", day: "numeric", year: "numeric" }),
+      "Jan 1, 2026"
+    );
+  } finally {
+    process.env.TZ = originalTz;
+  }
+});
+
 // Run async tests (subprocess-based checks that must run after sync tests)
 (async () => {
   await runAsyncTest("session tokens round-trip and reject tampering", sessionTokensRoundTrip);
@@ -766,4 +891,24 @@ async function runAsyncTest(name: string, fn: () => Promise<void>) {
   );
 })().catch(() => {
   process.exit(1);
+});
+
+test("a calendar date survives the edit-form round trip in a zone ahead of UTC", () => {
+  // The form-to-API-to-form loop: what the user picked, what gets stored, and what
+  // the edit form pre-fills when the job is re-opened. Europe/Berlin is deliberate:
+  // Sao Paulo sits behind UTC, which hides this bug, and the app is self-hostable.
+  const picked = "2026-09-05";
+  const stored = calendarDateToIso(picked, "Europe/Berlin");
+  assert.equal(stored, "2026-09-04T22:00:00.000Z");
+  assert.equal(isoToCalendarDate(stored, "Europe/Berlin"), picked);
+});
+
+test("the edit-form pre-fill round trips in the configured Sao Paulo zone too", () => {
+  const picked = "2026-09-05";
+  assert.equal(isoToCalendarDate(calendarDateToIso(picked)), picked);
+});
+
+test("the edit-form pre-fill holds across a year boundary", () => {
+  const picked = "2026-01-01";
+  assert.equal(isoToCalendarDate(calendarDateToIso(picked)), picked);
 });

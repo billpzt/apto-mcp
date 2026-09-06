@@ -16,7 +16,8 @@ export async function POST(req: Request) {
 
   // The cookie carries a signed, expiring token rather than the password, so a
   // stolen cookie cannot be replayed as the credential itself and rotating
-  // APP_PASSWORD invalidates it. The Edge proxy verifies it without a database.
+  // APP_PASSWORD invalidates it. The proxy verifies it with a signature check,
+  // no database round trip needed on every request (see lib/session.ts).
   const res = NextResponse.json({ ok: true });
   res.cookies.set(COOKIE, await createSessionToken(PASSWORD), {
     httpOnly: true,

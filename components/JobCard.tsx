@@ -8,6 +8,7 @@ import {
 import { KANBAN_STATUSES, STATUS_CONFIG, type JobStatus } from "@/lib/constants";
 import { parseJdAnalysis } from "@/lib/jd-analysis";
 import { formatJobUpdateOccurredAt } from "@/lib/job-update-timeline";
+import { formatCalendarDate } from "@/lib/date";
 import { safeUrl } from "@/lib/url";
 import type { SkillRecord } from "./KanbanBoard";
 
@@ -115,7 +116,7 @@ function buildSkillPills(jdAnalysis: string | null | undefined, skills: SkillRec
 }
 
 function formatDate(dateStr: string) {
-  return new Date(dateStr).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return formatCalendarDate(dateStr);
 }
 
 export function JobCard({ job, skills, onEdit, onDelete, onStatusChange, onAnalyze, onOpen, selectMode, selected, onSelect }: Props) {
@@ -254,7 +255,7 @@ export function JobCard({ job, skills, onEdit, onDelete, onStatusChange, onAnaly
 
       {job.followUpDate && (
         <p className="text-[10px] text-gray-400 mb-1">
-          Follow up: {new Date(job.followUpDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+          Follow up: {formatCalendarDate(job.followUpDate)}
         </p>
       )}
 

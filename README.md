@@ -119,7 +119,7 @@ Point any MCP client at the stdio bridge:
       "args": ["/absolute/path/to/apto/apto-mcp/index.js"],
       "env": {
         "APTO_BASE_URL": "http://localhost:3000",
-        "APTO_API_KEY": "the key from your .env.local"
+        "APTO_MCP_TOKEN": "the value you set for APTO_MCP_TOKEN"
       }
     }
   }
@@ -129,11 +129,14 @@ Point any MCP client at the stdio bridge:
 `APTO_BASE_URL` has no default. Set it to your own instance, local or deployed. `npm install` at the
 repository root installs the bridge's dependencies too, so there is no separate install step.
 
-The HTTP endpoint at `/api/mcp` is a different door with a different key: it needs `APTO_MCP_TOKEN`,
-and it returns 401 to everything when that variable is unset, in development as well as production.
-Two credentials rather than one is deliberate. The stdio bridge runs on your machine and uses
-`APTO_API_KEY`; `/api/mcp` is reachable from the internet on a deployed instance, and revoking one
-should not revoke the other.
+The bridge is a client of `/api/mcp`, not a separate thing: it forwards every call over HTTP to that
+endpoint, so it needs whatever credential `/api/mcp` itself checks, which is `APTO_MCP_TOKEN`. That
+endpoint returns 401 to everything when the variable is unset, in development as well as production.
+`APTO_API_KEY` is a different credential, for the REST routes under `/api/*` (`x-api-key` header or
+session cookie); `/api/mcp` does not accept it. The bridge also falls back to `APTO_API_KEY` for
+backward compatibility with older setups, but a fresh setup should use `APTO_MCP_TOKEN`. Two
+credentials rather than one is deliberate: revoking access to the REST routes should not revoke
+access to the MCP tools, or vice versa.
 
 ### Three rules, all learned from a bug
 
@@ -178,7 +181,7 @@ apto/
 
 **AI providers:** DeepSeek, Z.ai GLM, OpenRouter and Anthropic are all supported. Set whichever keys you have and pick a default in Settings.
 
-**A note on the MCP bridge.** `apto-mcp/index.js` contains no database code at all. It reads `APTO_API_KEY` and calls `APTO_BASE_URL` over HTTP. Prisma runs in the Next.js app. If a tool reports that it cannot reach the database, that error came from the deployed app's environment, not from the bridge, so editing the bridge's environment will not fix it.
+**A note on the MCP bridge.** `apto-mcp/index.js` contains no database code at all. It reads `APTO_MCP_TOKEN` (or, as a fallback, `APTO_API_KEY`) and calls `APTO_BASE_URL` over HTTP. Prisma runs in the Next.js app. If a tool reports that it cannot reach the database, that error came from the deployed app's environment, not from the bridge, so editing the bridge's environment will not fix it.
 
 ## Optional: running it on a server
 

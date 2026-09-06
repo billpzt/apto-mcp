@@ -1,4 +1,5 @@
 import { STATUS_CONFIG, type JobStatus } from "@/lib/constants";
+import { responseRate } from "@/lib/funnel";
 
 type StatusCount = {
   status: JobStatus;
@@ -16,10 +17,16 @@ const DISPLAY_STATUSES: JobStatus[] = [
   "WITHDRAWN",
 ];
 
-export function FunnelHeader({ counts }: { counts: Record<JobStatus, number> }) {
-  const appliedCount = counts.APPLIED;
-  const respondedCount = counts.ASSESSMENT + counts.STANDBY + counts.CLOSED;
-  const responseRate = appliedCount > 0 ? Math.round((respondedCount / appliedCount) * 100) : null;
+export function FunnelHeader({
+  counts,
+  submittedCount,
+  respondedCount,
+}: {
+  counts: Record<JobStatus, number>;
+  submittedCount: number;
+  respondedCount: number;
+}) {
+  const rate = responseRate(submittedCount, respondedCount);
 
   const items: StatusCount[] = DISPLAY_STATUSES.map((status) => ({
     status,
@@ -43,9 +50,9 @@ export function FunnelHeader({ counts }: { counts: Record<JobStatus, number> }) 
           );
         })}
         <div className="ml-auto inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs">
-          <span className="text-indigo-700">Response rate</span>
+          <span className="text-indigo-700">Response rate (of applications sent)</span>
           <span className="font-semibold text-indigo-900 tabular-nums">
-            {responseRate === null ? "N/A" : `${responseRate}%`}
+            {rate === null ? "N/A" : `${rate}%`}
           </span>
         </div>
       </div>

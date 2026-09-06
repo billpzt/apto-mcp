@@ -242,18 +242,50 @@ export function KanbanBoard({ initialJobs }: { initialJobs: Job[] }) {
   async function handleBulkMove(status: JobStatus) {
     if (selectedIds.size === 0) return;
     setBulkMoving(true);
+    setError(null);
     try {
-      await Promise.all([...selectedIds].map(id =>
-        fetch("/api/jobs/" + id, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status }),
+      const ids = [...selectedIds];
+      const results = await Promise.all(
+        ids.map(async (id) => {
+          const res = await fetch("/api/jobs/" + id, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ status }),
+          });
+          if (!res.ok) return { id, ok: false as const };
+          const updated: Job = await res.json();
+          return { id, ok: true as const, updated };
         })
-      ));
-      setJobs(prev => prev.map(j => selectedIds.has(j.id) ? { ...j, status } : j));
-      exitSelectMode();
-    } catch { setError("Bulk move failed"); }
-    finally { setBulkMoving(false); }
+      );
+
+      // Only apply the optimistic update for jobs whose PATCH actually
+      // succeeded, using the server's own copy of the record so the board
+      // reflects true server state rather than a guessed status.
+      const succeeded = results.filter(
+        (r): r is { id: string; ok: true; updated: Job } => r.ok
+      );
+      if (succeeded.length > 0) {
+        const updatedById = new Map(succeeded.map((r) => [r.id, r.updated]));
+        setJobs((prev) => prev.map((j) => updatedById.get(j.id) ?? j));
+      }
+
+      const failedIds = results.filter((r) => !r.ok).map((r) => r.id);
+      if (failedIds.length > 0) {
+        setError(
+          `${succeeded.length} job${succeeded.length === 1 ? "" : "s"} moved, ` +
+          `${failedIds.length} failed to move`
+        );
+        // Keep select mode open with only the failed jobs still selected,
+        // so the user can see and retry what did not go through.
+        setSelectedIds(new Set(failedIds));
+      } else {
+        exitSelectMode();
+      }
+    } catch {
+      setError("Bulk move failed");
+    } finally {
+      setBulkMoving(false);
+    }
   }
 
   function openAddInColumn(status: JobStatus) {

@@ -1,4 +1,5 @@
 import type { SerializedActionItem } from "@/lib/types";
+import { formatCalendarDate } from "@/lib/date";
 
 export function PrepQueue({ actions }: { actions: SerializedActionItem[] }) {
   if (actions.length === 0) {
@@ -22,7 +23,7 @@ export function PrepQueue({ actions }: { actions: SerializedActionItem[] }) {
                 {action.job?.company && `${action.job.company}`}
                 {action.dueDate && (
                   <span className="ml-2">
-                    Due: {new Date(action.dueDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                    Due: {formatCalendarDate(action.dueDate)}
                   </span>
                 )}
               </div>

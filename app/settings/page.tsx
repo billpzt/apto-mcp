@@ -102,9 +102,9 @@ export default async function SettingsPage() {
         <p className="text-sm text-gray-600">
           Access is gated by the <code className="rounded bg-gray-100 px-1">APP_PASSWORD</code>{" "}
           environment variable. Change it there and restart to rotate it, which signs every
-          existing session out. There is no in-app password change: sessions are verified at the
-          edge without a database round trip, so a password stored in the database could be
-          changed without any existing session losing access.
+          existing session out. There is no in-app password change: sessions are verified with a
+          signature check rather than a database round trip, so a password stored in the database
+          could be changed without any existing session losing access.
         </p>
       </section>
 

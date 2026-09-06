@@ -2,6 +2,7 @@
 
 import { STATUS_CONFIG } from "@/lib/constants";
 import type { SerializedJob } from "@/lib/types";
+import { formatCalendarDate } from "@/lib/date";
 
 // ponytail: hex map mirrors Tailwind's status palette, one source if colors drift
 const statusColors: Record<string, { bg: string; text: string }> = {
@@ -59,7 +60,7 @@ export function JobSignalCard({ job }: { job: SerializedJob }) {
 
       {job.followUpDate && (
         <p className="mt-1 text-[10px] text-gray-400">
-          Follow up: {new Date(job.followUpDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+          Follow up: {formatCalendarDate(job.followUpDate)}
         </p>
       )}
     </div>

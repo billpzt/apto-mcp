@@ -13,6 +13,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ASSISTANT_TOOLS, callAssistantTool } from "@/lib/assistant-tools";
 import { baseUrl } from "@/lib/oauth";
+import { isOriginAllowed } from "@/lib/origin";
 
 // ---------------------------------------------------------------------------
 // CORS — required for Cowork making cross-origin requests
@@ -39,7 +40,21 @@ function corsHeaders(req: NextRequest): Record<string, string> {
   return headers;
 }
 
+// An unlisted browser Origin is rejected outright, not merely left off the
+// CORS response. A stale Access-Control-Allow-Origin isn't a real barrier
+// since only the browser enforces CORS. A missing Origin (server-to-server,
+// e.g. a hosted MCP connector) is intentionally NOT rejected here: see
+// isOriginAllowed in lib/origin.ts for why, so nobody "fixes" this later and
+// breaks the deployed connector.
+function rejectedOrigin(req: NextRequest): NextResponse | null {
+  const origin = req.headers.get("origin");
+  if (isOriginAllowed(origin, ALLOWED_ORIGINS)) return null;
+  return new NextResponse(null, { status: 403, headers: { Vary: "Origin" } });
+}
+
 export async function OPTIONS(req: NextRequest) {
+  const rejected = rejectedOrigin(req);
+  if (rejected) return rejected;
   return new NextResponse(null, { status: 200, headers: corsHeaders(req) });
 }
 
@@ -152,6 +167,8 @@ async function handleMessage(msg: JsonRpcRequest) {
 // ---------------------------------------------------------------------------
 
 export async function GET(req: NextRequest) {
+  const rejected = rejectedOrigin(req);
+  if (rejected) return rejected;
   if (!isAuthorized(req)) {
     return unauthorizedResponse(req);
   }
@@ -163,6 +180,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const rejected = rejectedOrigin(req);
+  if (rejected) return rejected;
   if (!isAuthorized(req)) {
     return unauthorizedResponse(req);
   }

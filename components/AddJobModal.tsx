@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import { KANBAN_STATUSES, STATUS_CONFIG, SOURCE_TYPES, PRIORITIES, type JobStatus } from "@/lib/constants";
 import { formatJobUpdateOccurredAt, getJobUpdateTimelinePreview } from "@/lib/job-update-timeline";
+import { calendarDateToIso, isoToCalendarDate } from "@/lib/date";
 import type { SerializedJobUpdate } from "@/lib/types";
 
 type Job = {
@@ -121,7 +122,7 @@ export function AddJobModal({ job, defaultStatus, onSave, onJobUpdated, onClose 
     notes: job?.notes ?? "",
     score: job?.score ?? "",
     followUpDate: job?.followUpDate
-      ? new Date(job.followUpDate).toISOString().slice(0, 10)
+      ? isoToCalendarDate(job.followUpDate)
       : "",
     nextAction: job?.nextAction ?? "",
     priority: job?.priority ?? "",
@@ -132,10 +133,10 @@ export function AddJobModal({ job, defaultStatus, onSave, onJobUpdated, onClose 
     resumeSent: job?.resumeSent ?? "",
     closedReason: job?.closedReason ?? "",
     appliedAt: job?.appliedAt
-      ? new Date(job.appliedAt).toISOString().slice(0, 10)
+      ? isoToCalendarDate(job.appliedAt)
       : "",
     lastContactDate: job?.lastContactDate
-      ? new Date(job.lastContactDate).toISOString().slice(0, 10)
+      ? isoToCalendarDate(job.lastContactDate)
       : "",
   });
 
@@ -158,7 +159,7 @@ export function AddJobModal({ job, defaultStatus, onSave, onJobUpdated, onClose 
         jobType: form.jobType || null,
         notes: form.notes || null,
         score: form.score || null,
-        followUpDate: form.followUpDate ? new Date(form.followUpDate).toISOString() : null,
+        followUpDate: form.followUpDate ? calendarDateToIso(form.followUpDate) : null,
         nextAction: form.nextAction || null,
         priority: form.priority || null,
         sourceType: form.sourceType || null,
@@ -167,8 +168,8 @@ export function AddJobModal({ job, defaultStatus, onSave, onJobUpdated, onClose 
         jdText: form.jdText || null,
         resumeSent: form.resumeSent || null,
         closedReason: form.closedReason || null,
-        appliedAt: form.appliedAt ? new Date(form.appliedAt).toISOString() : null,
-        lastContactDate: form.lastContactDate ? new Date(form.lastContactDate).toISOString() : null,
+        appliedAt: form.appliedAt ? calendarDateToIso(form.appliedAt) : null,
+        lastContactDate: form.lastContactDate ? calendarDateToIso(form.lastContactDate) : null,
       });
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : "Could not save job");
@@ -188,7 +189,7 @@ export function AddJobModal({ job, defaultStatus, onSave, onJobUpdated, onClose 
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          occurredAt: new Date(updateForm.occurredAt).toISOString(),
+          occurredAt: calendarDateToIso(updateForm.occurredAt),
           kind: updateForm.kind,
           summary: updateForm.summary,
           details: updateForm.details || null,

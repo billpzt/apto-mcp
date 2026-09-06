@@ -8,6 +8,7 @@ import {
 import { KANBAN_STATUSES, STATUS_CONFIG, type JobStatus } from "@/lib/constants";
 import { parseJdAnalysis } from "@/lib/jd-analysis";
 import { safeUrl } from "@/lib/url";
+import { formatCalendarDate } from "@/lib/date";
 
 type Job = {
   id: string;
@@ -52,7 +53,7 @@ type Props = {
 
 function fmt(dateStr: string | null | undefined) {
   if (!dateStr) return null;
-  return new Date(dateStr).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  return formatCalendarDate(dateStr, { month: "short", day: "numeric", year: "numeric" });
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {

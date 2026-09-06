@@ -2,7 +2,12 @@
 /**
  * Apto MCP Server
  * Exposes Apto career dashboard as MCP tools for Claude Cowork.
- * Reads APTO_API_KEY from env or from the parent project's .env.local.
+ * Reads APTO_MCP_TOKEN from env or from the parent project's .env.local -
+ * that is the credential /api/mcp itself checks (see app/api/mcp/route.ts,
+ * isAuthorized). APTO_API_KEY is read as a fallback for setups configured
+ * before this was documented correctly; it is really the separate REST-route
+ * credential and /api/mcp does not accept it, so a setup relying on the
+ * fallback should migrate to APTO_MCP_TOKEN.
  *
  * This is a thin proxy, not a second tool registry. The tool list and every
  * call are forwarded over the wire to the app's own MCP endpoint (app/api/mcp/route.ts),
@@ -29,26 +34,37 @@ import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-function readEnvLocal() {
+function readEnvLocal(varName) {
   try {
     const envPath = path.join(__dirname, "../.env.local");
     const content = fs.readFileSync(envPath, "utf8");
-    const match = content.match(/APTO_API_KEY="?([^"\n]+)"?/);
+    const match = content.match(new RegExp(`${varName}="?([^"\\n]+)"?`));
     return match ? match[1].trim() : null;
   } catch {
     return null;
   }
 }
 
-const API_KEY = process.env.APTO_API_KEY || readEnvLocal();
+function resolveCredential(varName) {
+  return process.env[varName] || readEnvLocal(varName);
+}
+
+// APTO_MCP_TOKEN is what /api/mcp actually validates. APTO_API_KEY is kept as
+// a fallback purely for backward compatibility with setups configured before
+// this split was documented correctly.
+const MCP_TOKEN = resolveCredential("APTO_MCP_TOKEN");
+const LEGACY_API_KEY = resolveCredential("APTO_API_KEY");
+const AUTH_TOKEN = MCP_TOKEN || LEGACY_API_KEY;
 
 // No default instance. Point this at your own deployment, or at localhost.
 // Defaulting to someone else's host would send every unconfigured client's
 // requests to a stranger's database.
 const BASE_URL = process.env.APTO_BASE_URL;
 
-if (!API_KEY) {
-  process.stderr.write("ERROR: APTO_API_KEY not found in env or .env.local\n");
+if (!AUTH_TOKEN) {
+  process.stderr.write(
+    "ERROR: neither APTO_MCP_TOKEN nor APTO_API_KEY found in env or .env.local\n"
+  );
   process.exit(1);
 }
 
@@ -89,7 +105,7 @@ async function aptoFetchOnce(method, endpoint, body) {
   const opts = {
     method,
     headers: {
-      "x-api-key": API_KEY,
+      "x-api-key": AUTH_TOKEN,
       "Content-Type": "application/json",
     },
   };
@@ -181,9 +197,26 @@ async function mcpRpc(method, params, { retryable = false } = {}) {
   return aptoFetch("POST", "/api/mcp", body, { forceIdempotent: retryable });
 }
 
+// Auth failures (401/403) are not the same situation as an unreachable or
+// slow app: they mean the configured credential is wrong, and silently
+// serving an empty tool list makes that look like a successful connection
+// with zero tools instead of the broken setup it is. Thrown here, this
+// propagates out of ensureTools() and the ListToolsRequestSchema handler
+// below, and the MCP SDK turns it into a real JSON-RPC error response, so the
+// client actually surfaces it instead of quietly seeing "0 tools".
+class McpAuthError extends Error {}
+
 async function fetchToolList() {
   const result = await mcpRpc("tools/list", {}, { retryable: true });
   if (!result.ok) {
+    if (result.status === 401 || result.status === 403) {
+      const message =
+        `apto-mcp: authentication failed (${result.status}) calling ${BASE_URL}/api/mcp. ` +
+        `Check that APTO_MCP_TOKEN (or the legacy APTO_API_KEY fallback) matches the ` +
+        `APTO_MCP_TOKEN value configured on the server. ${JSON.stringify(result.data)}`;
+      process.stderr.write(message + "\n");
+      throw new McpAuthError(message);
+    }
     process.stderr.write(
       `apto-mcp: could not reach ${BASE_URL}/api/mcp for tools/list (status ${result.status}). ` +
         `Serving an empty tool list until the app is reachable; it will retry on the next tools/list request. ` +
@@ -206,6 +239,8 @@ async function fetchToolList() {
 // makes a start-before-the-app-is-up sequence recover on its own: the bridge
 // itself never crashes on an unreachable app (see fetchToolList above), it just
 // keeps reporting zero tools until a client asks again after the app comes up.
+// An auth failure (McpAuthError) is deliberately NOT caught here - it should
+// propagate so the caller gets a real error instead of a cached empty list.
 async function ensureTools() {
   if (cachedTools.length === 0) {
     cachedTools = await fetchToolList();
@@ -253,7 +288,15 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 // Warm the tool list before the client can ask for it. If the app happens to
 // be unreachable right now, ensureTools() has already logged why and returned
 // an empty list rather than throwing — the server still starts and connects.
-await ensureTools();
+// An auth failure DOES throw (McpAuthError, see fetchToolList above); caught
+// here only so the process still starts and connects, so the client's own
+// tools/list call gets the real JSON-RPC error instead of the process just
+// refusing to launch.
+try {
+  await ensureTools();
+} catch (err) {
+  process.stderr.write(`apto-mcp: initial tools/list failed: ${err.message}\n`);
+}
 
 const transport = new StdioServerTransport();
 await server.connect(transport);
