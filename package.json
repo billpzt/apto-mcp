@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build --webpack",
     "start": "next start",
     "test": "ts-node --project tsconfig.test.json tests/run.ts",
     "typecheck": "tsc --noEmit",
@@ -21,7 +21,7 @@
     "@anthropic-ai/sdk": "^0.37.0",
     "@prisma/client": "^6.19.3",
     "lucide-react": "^0.511.0",
-    "next": "16.3.4",
+    "next": "16.4.1",
     "react": "19.2.4",
     "react-dom": "19.2.4"
   },
@@ -31,7 +31,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.3.4",
+    "eslint-config-next": "16.4.1",
     "prisma": "^6.19.3",
     "tailwindcss": "^4",
     "ts-node": "^10.9.2",
