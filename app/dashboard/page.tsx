@@ -13,6 +13,9 @@ import { DailyApplicationProgress } from "@/components/dashboard/DailyApplicatio
 import { ApplicationQueue } from "@/components/dashboard/ApplicationQueue";
 import { AssistantBridge } from "@/components/dashboard/AssistantBridge";
 
+import { buildApplicationReport } from "@/lib/application-report";
+import { ApplicationReport } from "@/components/dashboard/ApplicationReport";
+
 export const dynamic = "force-dynamic";
 
 function timeAgo(iso: string): string {
@@ -76,6 +79,8 @@ export default async function DashboardPage() {
 
   const dashboard = buildDashboard({ jobs: serializedJobs, actions: serializedActions, directoryItems: serializedDir });
   const dailyQueue = buildDailyApplicationQueue(serializedJobs);
+  const now = new Date();
+  const reports = Object.fromEntries([7, 30, 90].map((days) => [days, buildApplicationReport(jobs, actions, days, now)]));
 
   return (
     <div className="flex-1 overflow-y-auto p-6 space-y-6">
@@ -91,6 +96,7 @@ export default async function DashboardPage() {
       <ApplicationQueue queue={dailyQueue} />
       <AssistantBridge />
       <DashboardSummary summary={dashboard.summary} />
+      <ApplicationReport reports={reports} />
 
       <section>
         <h2 className="text-sm font-semibold text-gray-800 mb-3">Today&apos;s Actions</h2>
